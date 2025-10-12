@@ -491,7 +491,7 @@ function CompaniesPanel({ settings, setSettings, projects, setProjects, usersByP
   const [selectedPid, setSelectedPid] = React.useState(settings.projectId || SEED_PROJECT_ID);
 
   const createCompany = () => {
-    if (!newCompany.name) return alert("نام شرکت/پروژه را وارد کنید.");
+  if (!newCompany.name) return alert("نام شرکت را وارد کنید.");
     const id = "P-" + Math.random().toString(36).slice(2, 8).toUpperCase();
     const rec = { id, name: newCompany.name, company: newCompany.company || newCompany.name, createdAt: new Date().toISOString() };
     setProjects([rec, ...projects]);
@@ -550,11 +550,11 @@ function CompaniesPanel({ settings, setSettings, projects, setProjects, usersByP
       <div className="title">شرکت‌های زیرمجموعه و ادمین‌های سطح ۱</div>
 
       <div className="card" style={{marginBottom:12}}>
-        <div className="subtitle">ایجاد شرکت/پروژه جدید</div>
+        <div className="subtitle">ایجاد شرکت جدید</div>
         <div className="grid2" style={{marginTop:8}}>
           <div>
-            <label>نام شرکت/پروژه</label>
-            <input value={newCompany.name} onChange={(e)=>setNewCompany({...newCompany, name:e.target.value})} placeholder="مثلاً پروژه الف" />
+            <label>نام شرکت</label>
+            <input value={newCompany.name} onChange={(e)=>setNewCompany({...newCompany, name:e.target.value})} placeholder="مثلاً شرکت الف" />
           </div>
           <div>
             <label>نام تجاری (اختیاری)</label>
@@ -699,8 +699,8 @@ return (
       <div className="row">
         <div className="col">
           <div className="card">
-            <div className="subtitle">مدیریت لایسنس شرکت/پروژه</div>
-            <label>انتخاب شرکت/پروژه</label>
+            <div className="subtitle">مدیریت لایسنس شرکت</div>
+            <label>انتخاب شرکت</label>
             <select value={companyKey} onChange={(e)=>setCompanyKey(e.target.value)}>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name} — {p.id}</option>)}
             </select>
