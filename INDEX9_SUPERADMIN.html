@@ -182,16 +182,16 @@ function App() {
   const [tab, setTab] = React.useState("dashboard");
   const visibleTabs = superAdmin ? ["dashboard", "companies", "settings"] : ["dashboard"];
 
+  // اگر کاربر جاری وجود نداشته باشد، به صفحه‌ی ورود یکپارچه هدایت می‌کنیم.
+  // این صفحه دیگر شامل فرم ورود داخلی نیست و مدیریت احراز هویت به طور
+  // کامل توسط فایل INDEX_MERGED.html انجام می‌شود. کاربر با این
+  // هدایت، مجدداً در پنل والد وارد سیستم می‌شود.
   if (!currentUser) {
-    return (
-      <div className="card">
-        <Login
-          settings={settings}
-          setSettings={setSettings}
-          getUsers={getUsers}
-        />
-      </div>
-    );
+    // انجام هدایت به صورت فوری
+    if (typeof window !== 'undefined') {
+      window.location.href = 'INDEX_MERGED.html';
+    }
+    return null;
   }
 
   const switchTab = (t) => {
