@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>ورود | سامانه یکپارچه</title>
 
+  <!-- فونت -->
   <link rel="preconnect" href="https://cdn.fontapi.ir" crossorigin>
   <link href="https://cdn.fontapi.ir/css/iranyekanrd" rel="stylesheet">
 
@@ -18,31 +19,37 @@
     }
     *{box-sizing:border-box} html,body{height:100%}
     body{
-      margin:0; font-family:"IRANYekanRD",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      margin:0; font-family:"IRANYekanRD",-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
       background: radial-gradient(1200px 900px at 110% -10%, rgba(255,213,77,.18) 0%, transparent 45%),
                   linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
       color:var(--text);
     }
     .wrap{min-height:100%; display:flex; align-items:center; justify-content:center; padding:28px}
     .card{width:min(480px,94vw); background:var(--card); border-radius:28px; box-shadow:var(--shadow); padding:28px 24px}
+
     .title{font-size:28px; font-weight:800; margin:0 0 6px}
     .subtitle{color:var(--muted); font-size:13px; margin-bottom:18px}
 
     .field{position:relative; margin-bottom:14px}
     .label{font-size:12px; color:var(--muted); margin-bottom:6px}
-    .input,.select{width:100%; padding:13px 14px; border:1px solid var(--line); border-radius:14px; background:#fff; outline:none;
-      transition:border-color .15s, box-shadow .15s, transform .12s ease}
+    .input,.select{
+      width:100%; padding:13px 14px; border:1px solid var(--line); border-radius:14px; background:#fff; outline:none;
+      transition:border-color .15s, box-shadow .15s;
+    }
     .input:focus,.select:focus{border-color:#FFDF77; box-shadow:var(--focus)}
 
+    /* فیلد پسورد: فضای کافی برای چشم */
+    .field.password .input{padding-left:46px;}
     .toggle{
-      position:absolute; left:10px; top:50%; transform:translateY(-50%);
-      width:28px; height:28px; display:grid; place-items:center; cursor:pointer; border-radius:50%;
-      background:#fff3c7; border:1px solid #f8e79a;
+      position:absolute; left:12px; top:50%; transform:translateY(-50%);
+      width:28px; height:28px; display:grid; place-items:center; cursor:pointer;
+      border-radius:50%; background:#fff3c7; border:1px solid #f8e79a;
     }
     .toggle svg{width:18px; height:18px; color:#7C5E00}
 
     .row{display:flex; align-items:center; justify-content:space-between; font-size:13px; color:#475569; margin:6px 2px 18px}
-    .row a{color:#7C5E00; text-decoration:none} .row a:hover{text-decoration:underline}
+    .row a{color:#7C5E00; text-decoration:none}
+    .row a:hover{text-decoration:underline}
     .row label{display:flex; align-items:center; gap:8px; cursor:pointer}
     .row input[type="checkbox"]{width:16px; height:16px; accent-color:#E6B800}
 
@@ -51,12 +58,15 @@
       background:linear-gradient(180deg,var(--primary) 0%, var(--primary-600) 100%);
       color:#3a2c00; font-weight:800; letter-spacing:.2px;
       box-shadow:0 10px 26px rgba(255,213,77,.45);
-      transform:translateY(0); transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;
+      transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;
     }
     .btn:hover{filter:saturate(1.03); box-shadow:0 14px 30px rgba(255,213,77,.58); transform:translateY(-2px)}
-    .foot{margin-top:16px; text-align:center; color:#475569; font-size:13px}
-    .foot a{color:#7C5E00; text-decoration:none} .foot a:hover{text-decoration:underline}
 
+    .foot{margin-top:16px; text-align:center; color:#475569; font-size:13px}
+    .foot a{color:#7C5E00; text-decoration:none}
+    .foot a:hover{text-decoration:underline}
+
+    /* بخش‌هایی که منطق اپ به آنها وصل است */
     #signupForm{display:none}
     #panelChoice{display:none; margin-top:18px}
     .panel-buttons{display:flex; gap:10px; flex-wrap:wrap; margin-top:8px}
@@ -84,10 +94,10 @@
           <input id="nationalIdInput" class="input" placeholder="مثلاً 0077541308" inputmode="numeric" autocomplete="username"/>
         </div>
 
-        <div class="field">
+        <div class="field password">
           <div class="label">رمز عبور</div>
           <input id="passwordInput" type="password" class="input" placeholder="رمز عبور" autocomplete="current-password"/>
-          <!-- آیکن چشم -->
+          <!-- آیکن چشم داخل کادر -->
           <button id="togglePwd" type="button" class="toggle" aria-label="نمایش/مخفی کردن رمز">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
@@ -98,26 +108,30 @@
 
         <div class="row">
           <label><input type="checkbox" id="rememberMe"> مرا به خاطر بسپار</label>
-          <a href="#" id="forgotLink">فراموشی رمز؟</a>
+          <a id="forgotLink" href="javascript:void(0)"><!-- فعلاً غیرفعال --></a>
+          <!-- فقط نمایش ظاهری «فراموشی رمز؟» بدون عملکرد -->
+          <span style="color:#94a3b8">فراموشی رمز؟</span>
         </div>
 
         <button id="loginBtn" type="button" class="btn">ورود</button>
 
         <div class="foot">
-          حسابی ندارید؟ <a id="toSignupLink" href="#">ثبت‌نام</a>
+          حسابی ندارید؟ <a id="toSignupLink" href="javascript:void(0)">ثبت‌نام</a>
         </div>
       </form>
 
       <!-- ===== ثبت‌نام ===== -->
       <form id="signupForm">
         <h1 class="title">ثبت‌نام</h1>
-        <div class="subtitle">ابتدا نام تجاری شرکت را وارد کنید</div>
+        <div class="subtitle">ابتدا نام تجاری شرکت یا کد پروژه را وارد کنید</div>
 
+        <!-- مرحله ۱: فقط کد -->
         <div class="field">
-          <div class="label">نام تجاری شرکت</div>
-          <input id="signupCompanyCode" class="input" placeholder="SampleCo"/>
+          <div class="label">نام تجاری شرکت/کد پروژه</div>
+          <input id="signupCompanyCode" class="input" placeholder="SampleCo / P-123"/>
         </div>
 
+        <!-- مرحله ۲: فیلدهای تکمیلی (پس از تأیید کد نمایش داده می‌شود) -->
         <div id="companyFields" style="display:none">
           <div class="field">
             <div class="label">شرکت</div>
@@ -127,9 +141,21 @@
             <div class="label">پروژه</div>
             <select id="signupProject" class="select"></select>
           </div>
+          <div class="field">
+            <div class="label">نام و نام خانوادگی</div>
+            <input id="signupFullname" class="input" placeholder="مثلاً علی رضایی"/>
+          </div>
+          <div class="field">
+            <div class="label">کد ملی</div>
+            <input id="signupNid" class="input" placeholder="**********" inputmode="numeric"/>
+          </div>
+          <div class="field">
+            <div class="label">رمز عبور</div>
+            <input id="signupPwd" class="input" type="password" placeholder="رمز عبور"/>
+          </div>
         </div>
 
-        <button id="signupBtn" type="button" class="btn">تأیید ثبت‌نام</button>
+        <button id="signupBtn" type="button" class="btn">ادامه</button>
         <div id="companyCodeMsg" class="subtitle" style="margin-top:8px"></div>
       </form>
 
@@ -153,10 +179,10 @@
     </div>
   </div>
 
-  <!-- هندلرهای سبکِ UI که با منطق فعلی شما همسازند -->
+  <!-- اسکریپت‌های سبک UI (با منطق فعلی شما سازگار) -->
   <script>
     (function(){
-      // آیکن چشم: نمایش/مخفی رمز
+      /* ===== چشم رمز ===== */
       const pwd = document.getElementById('passwordInput');
       const toggle = document.getElementById('togglePwd');
       if (pwd && toggle){
@@ -164,68 +190,103 @@
         toggle.addEventListener('click', function(){
           shown = !shown;
           pwd.type = shown ? 'text' : 'password';
-          // تغییر آیکن (دایره وسط را حذف/اضافه می‌کنیم)
           toggle.innerHTML = shown
             ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.84 21.84 0 0 1-3.3 4.62M14.12 9.88A3 3 0 0 1 12 15a3 3 0 0 1-2.12-.88M1 1l22 22"/></svg>'
             : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>';
         });
       }
 
-      // دکمه ورود: رویداد سفارشی + توابع دلخواه شما
-      const loginBtn = document.getElementById('loginBtn');
+      /* ===== ورود ===== */
+      const loginForm = document.getElementById('loginForm');
+      const loginBtn  = document.getElementById('loginBtn');
+
+      function submitLogin(){
+        const payload = {
+          nationalId: (document.getElementById('nationalIdInput')||{}).value || '',
+          password:   (document.getElementById('passwordInput')||{}).value || '',
+          remember:   (document.getElementById('rememberMe')||{}).checked || false
+        };
+        // رویداد استاندارد برای منطق موجود شما
+        window.dispatchEvent(new CustomEvent('ui:login', {detail: payload}));
+        // توابع احتمالی شما
+        if (typeof window.onUILoginSubmit === 'function') window.onUILoginSubmit(payload);
+        if (typeof window.handleLogin      === 'function') window.handleLogin(payload);
+        if (typeof window.login            === 'function') window.login(payload);
+      }
+
+      if (loginForm){
+        loginForm.addEventListener('submit', function(e){ e.preventDefault(); submitLogin(); });
+      }
       if (loginBtn){
         loginBtn.addEventListener('click', function(){
-          const payload = {
-            nationalId: (document.getElementById('nationalIdInput')||{}).value || '',
-            password:   (document.getElementById('passwordInput')||{}).value || '',
-            remember:   (document.getElementById('rememberMe')||{}).checked || false
-          };
-          // 1) رویداد مشترک برای اسکریپت‌های موجود شما
-          window.dispatchEvent(new CustomEvent('ui:login', {detail: payload}));
-          // 2) اگر تابعی از قبل دارید، صدا بزنیم
-          if (typeof window.onUILoginSubmit === 'function') window.onUILoginSubmit(payload);
+          if (loginForm && typeof loginForm.requestSubmit === 'function') loginForm.requestSubmit();
+          else if (loginForm){
+            // fallback برای قدیمی‌ترها
+            const ev = new Event('submit', {cancelable:true});
+            loginForm.dispatchEvent(ev);
+          } else { submitLogin(); }
         });
       }
 
-      // ثبت‌نام
+      /* ===== جابه‌جایی ورود/ثبت‌نام ===== */
+      const toSignup = document.getElementById('toSignupLink');
+      const signupForm = document.getElementById('signupForm');
+      function toggleAuth(){
+        if (!loginForm || !signupForm) return;
+        const lShow = loginForm.style.display !== 'none';
+        loginForm.style.display = lShow ? 'none' : 'block';
+        signupForm.style.display = lShow ? 'block' : 'none';
+        window.dispatchEvent(new Event('ui:toggleAuth'));
+      }
+      if (toSignup) toSignup.addEventListener('click', function(e){ e.preventDefault(); toggleAuth(); });
+
+      /* ===== ثبت‌نام دو مرحله‌ای ===== */
+      const companyFields = document.getElementById('companyFields');
       const signupBtn = document.getElementById('signupBtn');
+      const codeInput = document.getElementById('signupCompanyCode');
+
+      function doSignup(){
+        const payload = {
+          companyCode: (codeInput||{}).value || '',
+          company:     (document.getElementById('signupCompany')||{}).value || '',
+          project:     (document.getElementById('signupProject')||{}).value || '',
+          fullname:    (document.getElementById('signupFullname')||{}).value || '',
+          nationalId:  (document.getElementById('signupNid')||{}).value || '',
+          password:    (document.getElementById('signupPwd')||{}).value || ''
+        };
+        window.dispatchEvent(new CustomEvent('ui:signup', {detail: payload}));
+        if (typeof window.onUISignup    === 'function') window.onUISignup(payload);
+        if (typeof window.handleSignup  === 'function') window.handleSignup(payload);
+        if (typeof window.signup        === 'function') window.signup(payload);
+        // بازگشت به ورود
+        signupBtn.textContent = 'ادامه';
+        toggleAuth();
+      }
+
       if (signupBtn){
         signupBtn.addEventListener('click', function(){
-          const payload = {
-            companyCode: (document.getElementById('signupCompanyCode')||{}).value || '',
-            company:     (document.getElementById('signupCompany')||{}).value || '',
-            project:     (document.getElementById('signupProject')||{}).value || ''
-          };
-          window.dispatchEvent(new CustomEvent('ui:signup', {detail: payload}));
-          if (typeof window.onUISignup === 'function') window.onUISignup(payload);
-        });
-      }
-
-      // فراموشی رمز
-      const forgot = document.getElementById('forgotLink');
-      if (forgot){
-        forgot.addEventListener('click', function(e){
-          e.preventDefault();
-          const nationalId = (document.getElementById('nationalIdInput')||{}).value || '';
-          window.dispatchEvent(new CustomEvent('ui:forgot', {detail:{nationalId}}));
-          if (typeof window.onUIForgot === 'function') window.onUIForgot({nationalId});
-        });
-      }
-
-      // جابه‌جایی بین ورود/ثبت‌نام (در صورت نبود منطق قبلی)
-      const toSignup = document.getElementById('toSignupLink');
-      if (toSignup){
-        toSignup.addEventListener('click', function(e){
-          e.preventDefault();
-          const lf = document.getElementById('loginForm');
-          const sf = document.getElementById('signupForm');
-          if (lf && sf){
-            lf.style.display = (lf.style.display==='none') ? 'block' : 'none';
-            sf.style.display = (sf.style.display==='none' || !sf.style.display) ? 'block' : 'none';
+          // مرحله ۱ → نمایش فیلدهای تکمیلی
+          if (companyFields && companyFields.style.display === 'none'){
+            // اگر کد وارد نشده بود، چیزی نشان نده
+            if (!codeInput || !codeInput.value.trim()){
+              const msg = document.getElementById('companyCodeMsg');
+              if (msg) msg.textContent = 'لطفاً کد یا نام تجاری شرکت را وارد کنید.';
+              return;
+            }
+            companyFields.style.display = 'block';
+            signupBtn.textContent = 'ثبت‌نام';
+            const msg = document.getElementById('companyCodeMsg');
+            if (msg) msg.textContent = 'کد تأیید شد؛ لطفاً اطلاعات زیر را کامل کنید.';
+            return;
           }
-          window.dispatchEvent(new Event('ui:toggleAuth'));
+          // مرحله ۲ → ثبت‌نام و برگشت به ورود
+          doSignup();
         });
       }
+
+      // فراموشی رمز فعلاً غیرفعال (نمایشی)
+      const forgot = document.getElementById('forgotLink');
+      if (forgot){ forgot.addEventListener('click', function(e){ e.preventDefault(); }); }
     })();
   </script>
 
