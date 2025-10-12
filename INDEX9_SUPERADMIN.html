@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Swiny — Management Panel (SuperAdmin + Subsidiaries)</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: Vazirmatn, "IRANSans", Tahoma, sans-serif; background:#0f172a; color:#e5e7eb; margin:0; }
+      a { color: inherit; }
+      .container { max-width: none; width: 100%; margin: 0 auto; padding: 16px; }
+      .card { background:#111827; border:1px solid #1f2937; border-radius: 16px; padding:16px; box-shadow: 0 10px 20px rgba(0,0,0,0.25); }
+      .row { display:flex; gap:12px; flex-wrap: wrap; }
+      .col { flex:1 1 320px; }
+      .btn { background:#1f2937; border:1px solid #374151; color:#e5e7eb; padding:10px 14px; border-radius:12px; cursor:pointer; }
+      .btn:disabled { opacity: .5; cursor: not-allowed; }
+      .btn-primary { background:#2563eb; border-color:#1d4ed8; }
+      .btn-danger { background:#b91c1c; border-color:#991b1b; }
+      .btn-success { background:#16a34a; border-color:#15803d; }
+      input, select, textarea { width:100%; background:#0b1220; border:1px solid #334155; color:#e5e7eb; padding:10px; border-radius:12px; }
+      label { font-size: 13px; color:#93a3b8; display:block; margin:6px 0; }
+      .muted { color:#94a3b8; font-size: 12px; }
+      .title { font-size: 22px; font-weight: 700; margin: 6px 0 14px 0; }
+      .subtitle { font-size: 16px; font-weight: 600; color:#a5b4fc; }
+      .divider { height: 1px; background: #1f2937; margin: 12px 0; }
+      .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid #334155; background:#0b1220; }
+      .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; }
+      .tabs { display:flex; gap:8px; flex-wrap: wrap; }
+      .tab { padding:10px 14px; border-radius:999px; border:1px solid #334155; background:#0b1220; cursor:pointer; }
+      .tab.active { background:#1d4ed8; border-color:#1e40af; }
+      table { width:100%; border-collapse: collapse; }
+      th, td { padding:10px; border-bottom:1px solid #1f2937; font-size: 14px; }
+      th { text-align: right; color:#93a3b8; font-weight:600; }
+      .warning { background:#331111; border:1px solid #7f1d1d; padding:10px 12px; border-radius:12px; color:#fecaca;}
+      .success { background:#0f2f1a; border:1px solid #14532d; padding:10px 12px; border-radius:12px; color:#bbf7d0;}
+      .danger { background:#3f1b1b; border:1px solid #7f1d1d; padding:10px 12px; border-radius:12px; color:#fecaca;}
+      .notice { background:#0b1220; border:1px dashed #334155; padding:10px 12px; border-radius:12px; color:#cbd5e1;}
+      .overlay { position:fixed; inset:0; background:rgba(2,6,23,0.8); display:none; align-items:center; justify-content:center; z-index:999; }
+      .overlay.show { display:flex; }
+      .overlay .modal { background:#0b1220; border:1px solid #334155; padding:18px; border-radius:16px; width:min(520px, 92vw); }
+      .center { display:flex; align-items:center; justify-content:center; }
+      .timer { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+      .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+      .grid3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+      @media (max-width: 980px) { .grid3 { grid-template-columns: 1fr; } }
+      .company-card { padding:12px; border:1px solid #334155; border-radius:12px; background:#0b1220; }
+      .mini { font-size:12px; color:#9CA3AF; }
+      .hdr { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+      .hdr .left { order: 2; }  /* in RTL, first child is on right; left button appears on visual left */
+      .hdr .right { order: 1; }
+    </style>
+
+    <!-- React & ReactDOM (UMD dev builds) -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+
+    <!-- Babel (compile JSX in browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="app"></div>
+    </div>
+
+    <div id="blocker" class="overlay">
+      <div class="modal">
+        <div class="title">سیستم غیرفعال است</div>
+        <div class="danger">مالک سیستم (ادمین سطح صفر) کل سیستم را موقتاً غیرفعال کرده است. برای ادامه، با مالک تماس بگیرید.</div>
+        <div class="center" style="margin-top:12px">
+          <button class="btn" onclick="document.getElementById('blocker').classList.remove('show')">باشه</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="text/babel">
+
+// =====================
+// Utilities
+// =====================
+const uuid = () => crypto?.randomUUID?.() || ("id-" + Math.random().toString(36).slice(2) + Date.now());
+
+const LS_KEYS = {
+  settings: "swiny.settings.v1",
+  users: "swiny.usersByProject.v1",
+  projects: "swiny.projects.v1",
+};
+
+const SEED_PROJECT_ID = "P-SEED-0";
+
+const useLocalState = (key, initial) => {
+  const [state, setState] = React.useState(() => {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      try { return JSON.parse(raw); } catch(e){ return (typeof initial === "function" ? initial() : initial); }
+    }
+    const init = typeof initial === "function" ? initial() : initial;
+    localStorage.setItem(key, JSON.stringify(init));
+    return init;
+  });
+  React.useEffect(() => { localStorage.setItem(key, JSON.stringify(state)); }, [key, state]);
+  return [state, setState];
+};
+
+// =====================
+// Seed data
+// =====================
+const seedProjects = [
+  { id: SEED_PROJECT_ID, name: "پروژه نمونه", company: "SampleCo", createdAt: new Date().toISOString() }
+];
+
+// Super-admin seed (level 0)
+const seedUsersByProject = {
+  [SEED_PROJECT_ID]: [
+    {
+      id: "U-SEED-0",
+      projectId: SEED_PROJECT_ID,
+      role: "admin",
+      level: 0, // super admin
+      firstName: "مدیر",
+      lastName: "سیستم",
+      nationalId: "0077541308",
+      personnelNo: "ADM-0",
+      mobile: "",
+      jobTitle: "سوپرادمین",
+      position: "مالک سیستم",
+      employmentType: "company",
+      companyName: "مالک",
+      address: "",
+      password: "admin",
+      createdAt: new Date().toISOString()
+    }
+  ]
+};
+
+// Settings schema
+const defaultSettings = () => ({
+  // session & profile
+  projectId: SEED_PROJECT_ID,
+  role: "admin", // admin, user, ...
+  profilesByProject: { [SEED_PROJECT_ID]: { admin: "مدیر سیستم" } },
+  // feature flags
+  systemDisabled: false,
+  // licensing per project
+  licensesByCompany: {
+    [SEED_PROJECT_ID]: { /* expiresAtISO: "2026-01-01T12:00:00.000Z" */ }
+  },
+  companyForLicense: SEED_PROJECT_ID,
+});
+
+const normalizeSettings = (s) => ({ ...defaultSettings(), ...(s||{}) });
+
+// =====================
+// App root
+// =====================
+function App() {
+  const [projects, setProjects] = useLocalState(LS_KEYS.projects, () => seedProjects);
+  const [usersByProject, setUsersByProject] = useLocalState(LS_KEYS.users, () => seedUsersByProject);
+  const [settings, _setSettings] = useLocalState(LS_KEYS.settings, defaultSettings);
+
+  const setSettings = (v) => _setSettings(normalizeSettings(v));
+
+  // Helpers over stores
+  const getUsers = React.useCallback((projectId) => usersByProject[projectId] || [], [usersByProject]);
+  const setUsers = (projectId, arr) => setUsersByProject({ ...usersByProject, [projectId]: arr });
+
+  const currentUser = getCurrentUserRecord(settings, getUsers);
+  const superAdmin = isSuperAdmin(settings, getUsers);
+
+  
+  
+  
+  // Labels & subtitle helpers
+  const roleLabel = currentUser?.role === "admin" ? "ادمین" : (currentUser?.role === "user" ? "کاربر" : (currentUser?.role || "-"));
+  const userTypeLabel = currentUser?.role === "admin"
+    ? (Number(currentUser.level) === 0 ? "ادمین سطح ۰ (مالک)" : "ادمین سطح ۱")
+    : "کاربر";
+  const companyName = (projects.find(p => p.id === settings.projectId)?.name) || settings.projectId || "-";
+  const fullName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "-";
+// Tabs: for superadmin -> dashboard, companies, users, settings
+  // For level-1 admins -> ONLY dashboard
+  const [tab, setTab] = React.useState("dashboard");
+  const visibleTabs = superAdmin ? ["dashboard", "companies", "settings"] : ["dashboard"];
+
+  if (!currentUser) {
+    return (
+      <div className="card">
+        <Login
+          settings={settings}
+          setSettings={setSettings}
+          getUsers={getUsers}
+        />
+      </div>
+    );
+  }
+
+  const switchTab = (t) => {
+    if (!visibleTabs.includes(t)) return;
+    setTab(t);
+  };
+
+  // helper to open settings for a specific company (used on dashboard list)
+  const openLicenseSettings = (pid) => {
+    const ns = normalizeSettings({ ...settings, companyForLicense: pid });
+    setSettings(ns);
+    setTab("settings");
+  };
+
+  return (
+    <div className="row">
+      <div className="col" style={{flexBasis:"100%"}}>
+        <div className="card">
+          <div className="topbar">
+            <div>
+              <div className="title">پنل مدیریت سوئینی</div>
+              {superAdmin ? (
+                <div className="mini">کاربر: مدیر سیستم - نقش: ادمین سطح 0</div>
+              ) : (
+                <div className="mini">کاربر: {companyName} / {fullName} - نقش: {currentUser?.role === "admin" && Number(currentUser.level) === 1 ? "ادمین سطح 1" : roleLabel}</div>
+              )}
+            </div>
+            <div style={{display:"flex", alignItems:"center", gap:8}}>
+              <button className="btn" onClick={() => logout(settings, setSettings)}>خروج</button>
+            </div>
+          </div>
+
+          <div className="tabs" style={{marginTop:8}}>
+            {visibleTabs.includes("dashboard") && <button className={"tab " + (tab==="dashboard"?"active":"")} onClick={()=>switchTab("dashboard")}>داشبورد</button>}
+            {visibleTabs.includes("companies") && <button className={"tab " + (tab==="companies"?"active":"")} onClick={()=>switchTab("companies")}>شرکت‌ها</button>}
+                        {visibleTabs.includes("settings") && <button className={"tab " + (tab==="settings"?"active":"")} onClick={()=>switchTab("settings")}>تنظیمات</button>}
+          </div>
+
+          <div className="divider"></div>
+
+          {tab === "dashboard" && (
+            <Dashboard
+              settings={settings}
+              projects={projects}
+              getUsers={getUsers}
+              setUsers={setUsers}
+              openLicenseSettings={openLicenseSettings}
+            />
+          )}
+          {tab === "companies" && superAdmin && (
+            <CompaniesPanel
+              settings={settings}
+              setSettings={setSettings}
+              projects={projects}
+              setProjects={setProjects}
+              usersByProject={usersByProject}
+              getUsers={getUsers}
+              setUsers={setUsers}
+            />
+          )}
+          {tab === "users" && superAdmin && (
+            <UsersPanel
+              settings={settings}
+              setSettings={setSettings}
+              getUsers={getUsers}
+              setUsers={setUsers}
+            />
+          )}
+          {tab === "settings" && superAdmin && (
+            <SettingsPanel
+              settings={settings}
+              setSettings={setSettings}
+              projects={projects}
+              getUsers={getUsers}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================
+// Current user helpers
+// =====================
+const getCurrentUserRecord = (settingsLocal, getUsersFn) => {
+  const pid = settingsLocal.projectId;
+  const role = settingsLocal.role;
+  const full = (settingsLocal.profilesByProject?.[pid]?.[role]) || "";
+  const list = getUsersFn(pid);
+  if (!full) return null;
+  const match = list.find(u => (`${u.firstName||""} ${u.lastName||""}`).trim() === full.trim() && u.role === role);
+  return match || null;
+};
+const isSuperAdmin = (settingsLocal, getUsersFn) => {
+  const u = getCurrentUserRecord(settingsLocal, getUsersFn);
+  return !!(u && Number(u.level) === 0 && u.role === "admin");
+};
+
+// =====================
+// Licensing helpers
+// =====================
+const getCompanyLicenseRemainingMs = (companyKey, settingsLocal) => {
+  const lic = settingsLocal.licensesByCompany?.[companyKey];
+  if (!lic || !lic.expiresAtISO) return Infinity;
+  const remain = new Date(lic.expiresAtISO).getTime() - Date.now();
+  return remain;
+};
+const isCompanyLicenseValid = (companyKey, settingsLocal) => getCompanyLicenseRemainingMs(companyKey, settingsLocal) > 0;
+const humanizeRemaining = (ms) => {
+  if (ms === Infinity) return "بدون انقضا";
+  if (ms <= 0) return "منقضی شده";
+  const s = Math.floor(ms/1000);
+  const d = Math.floor(s/86400);
+  const h = Math.floor((s%86400)/3600);
+  const m = Math.floor((s%3600)/60);
+  return `${d} روز ${h} ساعت ${m} دقیقه`;
+};
+
+// =====================
+// Login / Logout
+// =====================
+function logout(settings, setSettings) {
+  const ns = normalizeSettings({ ...settings });
+  ns.profilesByProject = {};
+  setSettings(ns);
+}
+
+function Login({ settings, setSettings, getUsers }) {
+  const [nid, setNid] = React.useState("");
+  const [pwd, setPwd] = React.useState("");
+
+  const doLoginNID = () => {
+    // Search across all projects
+    const usersByProject = JSON.parse(localStorage.getItem(LS_KEYS.users) || "{}");
+    let foundUser = null;
+    let foundProjectId = null;
+    Object.keys(usersByProject).forEach(pid => {
+      const u = (usersByProject[pid]||[]).find(x => x.nationalId === nid && x.password === pwd);
+      if (u) { foundUser = u; foundProjectId = pid; }
+    });
+
+    if (!foundUser) return alert("کد ملی یا رمز عبور نادرست است.");
+
+    // License check
+    const companyKey = foundUser.projectId || foundProjectId;
+    const tempSettings = normalizeSettings(settings);
+    if (!isCompanyLicenseValid(companyKey, tempSettings)) {
+      // allow super admin bypass
+      if (!(foundUser.role === "admin" && Number(foundUser.level) === 0)) {
+        return alert("لایسنس این شرکت منقضی شده — لطفاً لایسنس را تمدید کنید.");
+      }
+    }
+
+    const ns = normalizeSettings({
+      ...settings,
+      projectId: companyKey,
+      role: foundUser.role,
+      profilesByProject: {
+        ...(settings.profilesByProject || {}),
+        [companyKey]: {
+          ...(settings.profilesByProject?.[companyKey] || {}),
+          [foundUser.role]: `${foundUser.firstName} ${foundUser.lastName}`
+        }
+      }
+    });
+    setSettings(ns);
+  };
+
+  return (
+    <div>
+      <div className="title">ورود به سیستم</div>
+      <div className="grid2">
+        <div>
+          <label>کد ملی</label>
+          <input value={nid} onChange={(e)=>setNid(e.target.value)} placeholder="مثلاً 0077541308" />
+        </div>
+        <div>
+          <label>رمز عبور</label>
+          <input type="password" value={pwd} onChange={(e)=>setPwd(e.target.value)} placeholder="مثلاً admin" />
+        </div>
+      </div>
+      <div style={{marginTop:12, display:"flex", gap:8}}>
+        <button className="btn btn-primary" onClick={doLoginNID}>ورود</button>
+        <div className="muted">سوپرادمین پیش‌فرض: کد ملی <code>0077541308</code> و رمز <code>admin</code></div>
+      </div>
+      <div className="divider"></div>
+      <div className="notice">
+        <div className="subtitle">نکته امنیتی</div>
+        پس از ورود با حساب سوپرادمین، لطفاً رمز عبور را از بخش «کاربران» تغییر دهید.
+      </div>
+    </div>
+  );
+}
+
+// =====================
+// Dashboard
+// =====================
+function Dashboard({ settings, projects, getUsers, setUsers, openLicenseSettings }) {
+  const project = projects.find(p => p.id === settings.projectId);
+
+  const me = getCurrentUserRecord(settings, getUsers);
+  const superAdmin = me && me.role === "admin" && Number(me.level) === 0;
+
+  // Self password change (for level-1 admin or any non-superadmin role)
+  const [oldPwd, setOldPwd] = React.useState("");
+  const [newPwd, setNewPwd] = React.useState("");
+  const [newPwd2, setNewPwd2] = React.useState("");
+  const [showPwdPanel, setShowPwdPanel] = React.useState(false);
+  const changeMyPassword = () => {
+    if (superAdmin) { return alert("برای سوپرادمین از بخش «کاربران» می‌توانید رمز همه را بدون رمز قبلی تغییر دهید."); }
+    if (!oldPwd || !newPwd || !newPwd2) return alert("همه فیلدها الزامی است.");
+    if (newPwd !== newPwd2) return alert("تکرار رمز جدید هم‌خوانی ندارد.");
+    if (me.password !== oldPwd) return alert("رمز فعلی نادرست است.");
+    const list = getUsers(settings.projectId);
+    const updated = list.map(u => u.id === me.id ? { ...u, password: newPwd } : u);
+    setUsers(settings.projectId, updated);
+    setOldPwd(""); setNewPwd(""); setNewPwd2("");
+    alert("رمز شما با موفقیت تغییر کرد.");
+  };
+
+  if (superAdmin) {
+    // ONLY list of all companies (no top boxes)
+    return (
+      <div>
+        <div className="title">لیست همه شرکت‌های زیرمجموعه (برای مالک)</div>
+        <div className="grid3" style={{marginTop:8}}>
+          {projects.map(p => {
+            const rem = getCompanyLicenseRemainingMs(p.id, settings);
+            const status = rem === Infinity ? "بدون انقضا" : (rem <= 0 ? "منقضی شده" : `فعال — باقیمانده: ${humanizeRemaining(rem)}`);
+            return (
+              <div key={p.id} className="company-card">
+                <div className="hdr">
+                  <div className="right">
+                    <div><strong>{p.name}</strong> <span className="mini">({p.id})</span></div>
+                    <div className="mini" style={{marginTop:6}}>وضعیت لایسنس: {status}</div>
+                  </div>
+                  <div className="left">
+                    <button className="btn" onClick={() => openLicenseSettings(p.id)}>تنظیمات لایسنس</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Non-superadmin (level-1): keep personal dashboard with only password change, but add a live license countdown
+  return (
+    <div>
+      <div className="title">داشبورد</div>
+
+      <div className="card" style={{marginTop:0}}>
+        <div className="subtitle">وضعیت لایسنس شرکت من</div>
+        <div className="mini" style={{marginTop:6}}>زمان باقیمانده (معکوس‌شمار):</div>
+        <LicenseCountdown settings={settings} companyKey={settings.projectId} />
+      </div>
+
+      { !showPwdPanel ? (
+        <div style={{marginTop:12}}>
+          <button className="btn btn-primary" onClick={() => setShowPwdPanel(true)}>تغییر رمز عبور من</button>
+        </div>
+      ) : (
+        <div className="card" style={{marginTop:12}}>
+          <div className="subtitle">تغییر رمز عبور من</div>
+          <div className="grid2" style={{marginTop:8}}>
+            <div>
+              <label>رمز فعلی</label>
+              <input type="password" value={oldPwd} onChange={(e)=>setOldPwd(e.target.value)} />
+            </div>
+            <div>
+              <label>رمز جدید</label>
+              <input type="password" value={newPwd} onChange={(e)=>setNewPwd(e.target.value)} />
+            </div>
+            <div>
+              <label>تکرار رمز جدید</label>
+              <input type="password" value={newPwd2} onChange={(e)=>setNewPwd2(e.target.value)} />
+            </div>
+          </div>
+          <div style={{marginTop:10, display:"flex", gap:8}}>
+            <button className="btn btn-primary" onClick={changeMyPassword}>تغییر رمز</button>
+            <button className="btn" onClick={() => { setShowPwdPanel(false); setOldPwd(""); setNewPwd(""); setNewPwd2(""); }}>انصراف</button>
+          </div>
+          <div className="mini" style={{marginTop:6}}>برای امنیت، ادمین سطح ۱ و کاربران عادی باید رمز فعلی خود را بدانند.</div>
+        </div>
+      ) }
+    </div>
+  );
+}
+// =====================
+// Companies (SuperAdmin only)
+// =====================
+function CompaniesPanel({ settings, setSettings, projects, setProjects, usersByProject, getUsers, setUsers }) {
+  const [newCompany, setNewCompany] = React.useState({ name: "", company: "" });
+  const [selectedPid, setSelectedPid] = React.useState(settings.projectId || SEED_PROJECT_ID);
+
+  const createCompany = () => {
+    if (!newCompany.name) return alert("نام شرکت/پروژه را وارد کنید.");
+    const id = "P-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+    const rec = { id, name: newCompany.name, company: newCompany.company || newCompany.name, createdAt: new Date().toISOString() };
+    setProjects([rec, ...projects]);
+    setUsers(id, usersByProject[id] || []);
+    const ns = normalizeSettings(settings);
+    ns.licensesByCompany = ns.licensesByCompany || {};
+    if (!ns.licensesByCompany[id]) ns.licensesByCompany[id] = {};
+    setSettings(ns);
+    setNewCompany({ name:"", company:"" });
+    setSelectedPid(id);
+  };
+
+  const admins = (getUsers(selectedPid) || []).filter(u => u.role === "admin" && Number(u.level) === 1);
+  const [form, setForm] = React.useState({ firstName:"", lastName:"", nationalId:"", password:"" });
+
+  const addLevel1Admin = () => {
+    if (!form.firstName || !form.lastName || !form.nationalId || !form.password) return alert("همه فیلدهای ضروری را پر کنید.");
+    const arr = getUsers(selectedPid);
+    if (arr.some(u => u.nationalId === form.nationalId)) return alert("کاربری با این کدملی در این شرکت وجود دارد.");
+    const rec = {
+      id: uuid(),
+      projectId: selectedPid,
+      role: "admin",
+      level: 1,
+      firstName: form.firstName,
+      lastName: form.lastName,
+      nationalId: form.nationalId,
+      password: form.password,
+      createdAt: new Date().toISOString(),
+    };
+    setUsers(selectedPid, [rec, ...arr]);
+    setForm({ firstName:"", lastName:"", nationalId:"", password:"" });
+  };
+
+  const removeAdmin = (id) => {
+    const arr = getUsers(selectedPid);
+    if (!confirm("حذف این ادمین سطح ۱؟")) return;
+    setUsers(selectedPid, arr.filter(u => u.id !== id));
+  };
+
+  
+  const changeAdminPwd = (id) => {
+    const arr = getUsers(selectedPid);
+    const user = arr.find(u => u.id === id);
+    if (!user) return;
+    const np = prompt(`رمز جدید برای ${user.firstName} ${user.lastName} وارد کنید:`, "");
+    if (!np) return;
+    const updated = arr.map(u => u.id === id ? ({ ...u, password: np }) : u);
+    setUsers(selectedPid, updated);
+    alert("رمز عبور ادمین سطح ۱ تغییر کرد.");
+  };
+
+
+  return (
+    <div>
+      <div className="title">شرکت‌های زیرمجموعه و ادمین‌های سطح ۱</div>
+
+      <div className="card" style={{marginBottom:12}}>
+        <div className="subtitle">ایجاد شرکت/پروژه جدید</div>
+        <div className="grid2" style={{marginTop:8}}>
+          <div>
+            <label>نام شرکت/پروژه</label>
+            <input value={newCompany.name} onChange={(e)=>setNewCompany({...newCompany, name:e.target.value})} placeholder="مثلاً پروژه الف" />
+          </div>
+          <div>
+            <label>نام تجاری (اختیاری)</label>
+            <input value={newCompany.company} onChange={(e)=>setNewCompany({...newCompany, company:e.target.value})} placeholder="مثلاً Energy Dana" />
+          </div>
+        </div>
+        <div style={{marginTop:10}}>
+          <button className="btn btn-success" onClick={createCompany}>ثبت شرکت</button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="subtitle">مدیریت ادمین‌های سطح ۱ هر شرکت</div>
+        <label>انتخاب شرکت</label>
+        <select value={selectedPid} onChange={(e)=>setSelectedPid(e.target.value)}>
+          {projects.map(p => <option key={p.id} value={p.id}>{p.name} — {p.id}</option>)}
+        </select>
+
+        <div className="divider"></div>
+
+        <div className="subtitle">افزودن ادمین سطح ۱</div>
+        <div className="grid2" style={{marginTop:8}}>
+          <div>
+            <label>نام</label>
+            <input value={form.firstName} onChange={(e)=>setForm({...form, firstName:e.target.value})} />
+          </div>
+          <div>
+            <label>نام خانوادگی</label>
+            <input value={form.lastName} onChange={(e)=>setForm({...form, lastName:e.target.value})} />
+          </div>
+          <div>
+            <label>کد ملی</label>
+            <input value={form.nationalId} onChange={(e)=>setForm({...form, nationalId:e.target.value})} />
+          </div>
+          <div>
+            <label>رمز عبور</label>
+            <input value={form.password} onChange={(e)=>setForm({...form, password:e.target.value})} />
+          </div>
+        </div>
+        <div style={{marginTop:10}}>
+          <button className="btn btn-primary" onClick={addLevel1Admin}>افزودن ادمین سطح ۱ برای این شرکت</button>
+        </div>
+
+        <div className="divider"></div>
+        <div className="subtitle">ادمین‌های سطح ۱ این شرکت</div>
+        <table style={{marginTop:8}}>
+          <thead>
+            <tr>
+              <th>نام</th>
+              <th>کد ملی</th>
+              <th>اقدامات</th>
+            </tr>
+          </thead>
+        <tbody>
+            {admins.map(u => (
+              <tr key={u.id}>
+                <td><strong>{u.firstName} {u.lastName}</strong></td>
+                <td>{u.nationalId}</td>
+                <td style={{display:"flex", gap:8}}><button className="btn" onClick={() => changeAdminPwd(u.id)}>تغییر رمز</button> <button className="btn btn-danger" onClick={() => removeAdmin(u.id)}>حذف</button></td>
+              </tr>
+            ))}
+            {admins.length===0 && (
+              <tr><td colSpan="3" className="muted">برای این شرکت هنوز ادمین سطح ۱ تعریف نشده است.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// =====================
+// License Countdown
+// =====================
+
+function LicenseCountdown({ settings, companyKey }) {
+  // Read the current company's expiry once as a dependency
+  const expiresAtISO = settings?.licensesByCompany?.[companyKey]?.expiresAtISO || null;
+  const [countdown, setCountdown] = React.useState("");
+
+  // zero-pad for mm:ss
+  const z2 = (n) => String(n).padStart(2, "0");
+
+  React.useEffect(() => {
+    let timerId;
+
+    const update = () => {
+      // Compute remaining based on now and expiresAtISO
+      if (!expiresAtISO) { setCountdown("بدون انقضا"); return; }
+      const remain = new Date(expiresAtISO).getTime() - Date.now();
+      if (remain <= 0) { setCountdown("منقضی شده"); return; }
+      const s = Math.floor(remain / 1000);
+      const days = Math.floor(s / 86400);
+      const hrs  = Math.floor((s % 86400) / 3600);
+      const mins = Math.floor((s % 3600) / 60);
+      const secs = s % 60;
+      setCountdown(`${days} روز ${hrs} ساعت ${mins} دقیقه ${z2(secs)} ثانیه`);
+    };
+
+    update(); // immediate
+    timerId = setInterval(update, 1000);
+
+    return () => { if (timerId) clearInterval(timerId); };
+  }, [companyKey, expiresAtISO]);
+
+  return (
+    <div className="timer" style={{marginTop:8, fontSize:18, fontWeight:700}}>{countdown}</div>
+  );
+}
+// =====================
+// Settings Panel (SuperAdmin only)
+// =====================
+function SettingsPanel({ settings, setSettings, projects, getUsers }) {
+  const [companyKey, setCompanyKey] = React.useState(settings.companyForLicense || (projects[0]?.id || SEED_PROJECT_ID));
+  const [expiryInput, setExpiryInput] = React.useState("");
+React.useEffect(()=> {
+    setExpiryInput(settings.licensesByCompany?.[companyKey]?.expiresAtISO || "");
+  }, [companyKey, settings.licensesByCompany]);
+
+  const saveExpiry = () => {
+    if (!expiryInput) { alert("تاریخ/زمان انقضا را وارد کنید."); return; }
+    const ns = normalizeSettings(settings);
+    ns.licensesByCompany = ns.licensesByCompany || {};
+    ns.licensesByCompany[companyKey] = { expiresAtISO: expiryInput };
+    ns.companyForLicense = companyKey;
+    setSettings(ns);
+    alert("تاریخ انقضا ذخیره شد.");
+  };
+
+  const removeExpiry = () => {
+    const ns = normalizeSettings(settings);
+    if (ns.licensesByCompany?.[companyKey]) {
+      delete ns.licensesByCompany[companyKey].expiresAtISO;
+    }
+    setSettings(ns);
+    setExpiryInput("");
+    alert("انقضا حذف شد.");
+  };
+return (
+    <div>
+      <div className="title">تنظیمات</div>
+      <div className="row">
+        <div className="col">
+          <div className="card">
+            <div className="subtitle">مدیریت لایسنس شرکت/پروژه</div>
+            <label>انتخاب شرکت/پروژه</label>
+            <select value={companyKey} onChange={(e)=>setCompanyKey(e.target.value)}>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name} — {p.id}</option>)}
+            </select>
+
+            <div className="divider"></div>
+            <div className="muted">وضعیت</div>
+            <LicenseCountdown settings={settings} companyKey={companyKey} />
+
+            <div className="divider"></div>
+            <label>تعیین تاریخ انقضا (با دقت ساعت/دقیقه)</label>
+            <input type="datetime-local"
+              value={expiryInput ? expiryInput.slice(0,16) : ""}
+              onChange={(e)=>{
+                const local = e.target.value; // "YYYY-MM-DDTHH:MM"
+                if (!local) { setExpiryInput(""); return; }
+                const iso = new Date(local).toISOString();
+                setExpiryInput(iso);
+              }}
+            />
+            <div style={{display:"flex", gap:8, marginTop:10}}>
+              <button className="btn btn-success" onClick={saveExpiry}>ذخیره انقضا</button>
+              <button className="btn btn-danger" onClick={removeExpiry}>حذف انقضا</button>
+            </div>
+            <div className="muted" style={{marginTop:8}}>ذخیره‌سازی به صورت ISO/UTC انجام می‌شود.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================
+// Users Panel (SuperAdmin manages current project's users)
+// =====================
+function UsersPanel({ settings, setSettings, getUsers, setUsers }) {
+  const list = getUsers(settings.projectId);
+  const [form, setForm] = React.useState({
+    firstName: "",
+    lastName: "",
+    role: "admin",
+    level: 1,
+    nationalId: "",
+    password: "",
+  });
+
+  const addUser = () => {
+    if (!form.firstName || !form.lastName || !form.nationalId || !form.password) {
+      alert("همه فیلدهای ضروری را پر کنید."); return;
+    }
+    const isAdminRole = form.role === "admin";
+    const newLevel = isAdminRole ? (Number(form.level) || 1) : null;
+    const rec = {
+      id: uuid(),
+      projectId: settings.projectId,
+      role: form.role,
+      level: newLevel,
+      firstName: form.firstName,
+      lastName: form.lastName,
+      nationalId: form.nationalId,
+      password: form.password,
+      createdAt: new Date().toISOString(),
+    };
+    setUsers(settings.projectId, [rec, ...list]);
+    setForm({ firstName:"", lastName:"", role:"admin", level:1, nationalId:"", password:"" });
+  };
+
+  const removeUser = (id) => {
+    const user = list.find(u => u.id === id);
+    if (user?.level === 0) return alert("حذف/ویرایش ادمین سطح صفر مجاز نیست.");
+    if (!confirm("حذف این کاربر؟")) return;
+    setUsers(settings.projectId, list.filter(u => u.id !== id));
+  };
+
+  const changePassword = (id) => {
+    const user = list.find(u => u.id === id);
+    if (!user) return;
+    const np = prompt(`رمز جدید برای ${user.firstName} ${user.lastName} وارد کنید:`, "");
+    if (!np) return;
+    const nl = list.map(u => u.id === id ? { ...u, password: np } : u);
+    setUsers(settings.projectId, nl);
+    alert("رمز به‌روزرسانی شد.");
+  };
+
+  return (
+    <div>
+      <div className="title">کاربران (همین شرکت)</div>
+
+      <div className="card" style={{marginBottom:12}}>
+        <div className="subtitle">افزودن کاربر جدید</div>
+        <div className="grid2" style={{marginTop:8}}>
+          <div>
+            <label>نام</label>
+            <input value={form.firstName} onChange={(e)=>setForm({...form, firstName: e.target.value})} />
+          </div>
+          <div>
+            <label>نام خانوادگی</label>
+            <input value={form.lastName} onChange={(e)=>setForm({...form, lastName: e.target.value})} />
+          </div>
+          <div>
+            <label>نقش</label>
+            <select value={form.role} onChange={(e)=>setForm({...form, role: e.target.value})}>
+              <option value="admin">ادمین</option>
+              <option value="user">کاربر عادی</option>
+            </select>
+          </div>
+          <div>
+            <label>سطح ادمین</label>
+            <select value={form.level} onChange={(e)=>setForm({...form, level: e.target.value})} disabled={form.role!=="admin"}>
+              <option value={0}>سطح ۰ (سوپرادمین)</option>
+              <option value={1}>سطح ۱</option>
+            </select>
+          </div>
+          <div>
+            <label>کد ملی</label>
+            <input value={form.nationalId} onChange={(e)=>setForm({...form, nationalId: e.target.value})} />
+          </div>
+          <div>
+            <label>رمز عبور</label>
+            <input value={form.password} onChange={(e)=>setForm({...form, password: e.target.value})} />
+          </div>
+        </div>
+        <div style={{marginTop:10}}>
+          <button className="btn btn-primary" onClick={addUser}>افزودن کاربر</button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="subtitle">لیست کاربران این شرکت</div>
+        <table style={{marginTop:8}}>
+          <thead>
+            <tr>
+              <th>نام</th>
+              <th>نقش</th>
+              <th>سطح</th>
+              <th>کد ملی</th>
+              <th>اقدامات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map(u => (
+              <tr key={u.id}>
+                <td><strong>{u.firstName} {u.lastName}</strong></td>
+                <td>{u.role}</td>
+                <td>{u.role==="admin" ? (u.level ?? 1) : "-"}</td>
+                <td>{u.nationalId}</td>
+                <td style={{display:"flex", gap:8}}>
+                  <button className="btn" onClick={() => changePassword(u.id)}>تغییر رمز (بدون رمز قبلی)</button>
+                  <button className="btn btn-danger" onClick={() => removeUser(u.id)} disabled={u.level===0}>حذف</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// =====================
+// Render
+// =====================
+const root = ReactDOM.createRoot(document.getElementById("app"));
+root.render(<App />);
+
+    </script>
+  </body>
+</html>
