@@ -159,7 +159,18 @@
       <div id="panelChoice" class="form" style="display:none;">
         <h2>انتخاب پنل</h2>
         <p style="font-size:14px; margin-bottom:16px;">کدام پنل را می‌خواهید باز کنید؟</p>
-        <div class="panel-buttons">
+        <!--
+          بخش انتخاب پنل.  برای ادمین سطح صفر، یک لیست کشویی انتخاب شرکت در کنار
+          دکمه‌ی «پنل شرکت» نمایش داده می‌شود تا بتواند قبل از ورود به پنل
+          شرکت، شرکت مورد نظرش را انتخاب کند.  این عنصر به داخل ظرف
+          panel‑buttons منتقل شده تا به شکل افقی در کنار دکمه‌ها قرار گیرد.
+        -->
+        <div class="panel-buttons" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+          <!-- Dropdown for selecting company (visible only for super-admins) -->
+          <div id="companySelectForPanel" style="display:none; margin-inline-end:12px;">
+            <label for="panelCompanySelect" style="font-size:14px; margin-bottom:4px; display:block;">انتخاب شرکت</label>
+            <select id="panelCompanySelect" style="width:200px; padding:8px; border:1px solid #D1D5DB; border-radius:6px;"></select>
+          </div>
           <!--
             Use anchor elements instead of buttons for navigation.  Browsers
             impose strict security rules on programmatic navigation between
@@ -433,7 +444,26 @@
       function showPanelChoice() {
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('signupForm').style.display = 'none';
-        document.getElementById('panelChoice').style.display = 'block';
+        const panelChoiceEl = document.getElementById('panelChoice');
+        panelChoiceEl.style.display = 'block';
+        // For super admins (level 0), show a company dropdown to pick which company to open.
+        const compDiv = document.getElementById('companySelectForPanel');
+        const compSel = document.getElementById('panelCompanySelect');
+        if (loggedInUser && loggedInUser.level === 0) {
+          // Populate the dropdown with all companies
+          const map = getCompaniesMap();
+          compSel.innerHTML = '';
+          Object.keys(map).forEach(comp => {
+            const opt = document.createElement('option');
+            opt.value = comp;
+            opt.textContent = comp;
+            compSel.appendChild(opt);
+          });
+          compDiv.style.display = 'block';
+        } else {
+          // Hide the dropdown for non-super admins
+          compDiv.style.display = 'none';
+        }
       }
 
       // Populate the company and project dropdowns in the signup form from stored data
@@ -677,7 +707,20 @@
           showLogin();
           return;
         }
-        setLoggedInSettings(loggedInUser, loggedInUser.projectId);
+        let pid = loggedInUser.projectId;
+        // If super admin (level 0) and company dropdown is visible, choose the first project of the selected company
+        if (loggedInUser.level === 0) {
+          const compSel = document.getElementById('panelCompanySelect');
+          const selectedComp = compSel && compSel.value;
+          if (selectedComp) {
+            const map = getCompaniesMap();
+            const projs = map[selectedComp] || [];
+            if (projs.length > 0) {
+              pid = projs[0].id;
+            }
+          }
+        }
+        setLoggedInSettings(loggedInUser, pid);
         showIframeFor('INDEX8%20-%20Copy13.html');
       });
       document.getElementById('adminPanelBtn').addEventListener('click', (ev) => {
@@ -688,6 +731,26 @@
         }
         setLoggedInSettings(loggedInUser, loggedInUser.projectId);
         showIframeFor('INDEX9_SUPERADMIN.html');
+      });
+
+      // Listen for messages from embedded iframes.  When a company panel sends a
+      // "backToPanelChoice" message (e.g. via window.parent.postMessage), this
+      // handler hides the iframe and shows the panel selection screen again.
+      window.addEventListener('message', (ev) => {
+        if (ev && ev.data && ev.data.type === 'backToPanelChoice') {
+          // Hide the iframe and show the panel selection.  We also
+          // re-invoke showPanelChoice() so that the company dropdown
+          // and other stateful elements are refreshed without requiring
+          // the user to log in again.  This preserves the logged-in
+          // user and avoids forcing them to re-enter credentials.
+          const iframe = document.getElementById('panelFrame');
+          iframe.style.display = 'none';
+          const choice = document.getElementById('panelChoice');
+          choice.style.display = 'block';
+          if (typeof showPanelChoice === 'function') {
+            showPanelChoice();
+          }
+        }
       });
     })();
     </script>
