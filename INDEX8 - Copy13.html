@@ -886,15 +886,22 @@ table { width: 100%; }
 
         // دکمه بازگشت به انتخاب پنل؛ برای کاربران ادمین نمایش داده می‌شود
         const goToPanelSelection = () => {
-          // هدایت به صفحه مشترک جهت انتخاب پنل
+          /*
+            به جای تغییر مکان صفحه (که منجر به خروج کاربر می‌شود)،
+            پیامی به پدر (iframe میزبان) ارسال می‌کنیم تا صفحه انتخاب پنل را
+            دوباره نمایش دهد.  این پیغام در INDEX_MERGED.html شنیده می‌شود و
+            موجب مخفی شدن iframe و نمایش مجدد صفحه انتخاب پنل می‌گردد.
+          */
           try {
-            window.location.href = "INDEX_MERGED.html";
-          } catch (e) {
-            if (window.parent) {
-              try {
-                window.parent.location.href = "INDEX_MERGED.html";
-              } catch (_) {}
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage({ type: 'backToPanelChoice' }, '*');
+            } else {
+              // اگر در iframe نیستیم، به صورت fallback به صفحه مشترک برویم
+              window.location.href = 'INDEX_MERGED.html';
             }
+          } catch (e) {
+            // در صورت بروز خطا، fallback
+            window.location.href = 'INDEX_MERGED.html';
           }
         };
         const [usersQuery, setUsersQuery] = useState("");
