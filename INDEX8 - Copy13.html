@@ -818,6 +818,21 @@ table { width: 100%; }
           const s = signup;
           return s.acceptTerms && s.projectId && s.role && s.firstName && s.lastName && s.nationalId && s.password && (s.password===s.confirmPassword);
         };
+
+        // اگر کاربر نقش «بیننده» داشته باشد (یعنی هنوز لاگین نکرده)، این صفحه به صفحه‌ی ورود/انتخاب پنل منتقل می‌شود.
+        useEffect(() => {
+          if (settings.role === "viewer") {
+            try {
+              window.location.href = "INDEX_MERGED.html";
+            } catch (e) {
+              if (window.parent) {
+                try {
+                  window.parent.location.href = "INDEX_MERGED.html";
+                } catch (_) {}
+              }
+            }
+          }
+        }, [settings.role]);
         const doSignup = () => {
           if (!canSubmitSignup()) return alert("فیلدهای ضروری را کامل کنید و قوانین را بپذیرید.");
           addUserRecord({ ...signup });
@@ -848,10 +863,39 @@ table { width: 100%; }
           setTab("dash");
           setLoginNID(""); setLoginPW("");
         };
+        // اصلاح تابع خروج: اکنون پس از خروج به صفحه ورود/انتخاب پنل مشترک هدایت می‌کند.
         const doLogout = () => {
+          // کاربر را به حالت «بیننده» بازگردانید و منو را ببندید
           setSettings({ ...settings, role: "viewer" });
           setSelectedRoleUI("viewer");
           setUserMenuOpen(false);
+          // پس از به‌روزرسانی تنظیمات، به صفحه ورود مشترک هدایت کنید. از setTimeout استفاده می‌شود تا ابتدا state اعمال شود.
+          setTimeout(() => {
+            try {
+              window.location.href = "INDEX_MERGED.html";
+            } catch (e) {
+              // در صورت بروز خطا در هدایت (برای مثال داخل iframe)، به صفحه والد نیز تلاش می‌کنیم هدایت کنیم
+              if (window.parent) {
+                try {
+                  window.parent.location.href = "INDEX_MERGED.html";
+                } catch (_) {}
+              }
+            }
+          }, 0);
+        };
+
+        // دکمه بازگشت به انتخاب پنل؛ برای کاربران ادمین نمایش داده می‌شود
+        const goToPanelSelection = () => {
+          // هدایت به صفحه مشترک جهت انتخاب پنل
+          try {
+            window.location.href = "INDEX_MERGED.html";
+          } catch (e) {
+            if (window.parent) {
+              try {
+                window.parent.location.href = "INDEX_MERGED.html";
+              } catch (_) {}
+            }
+          }
         };
         const [usersQuery, setUsersQuery] = useState("");
             const setDraft = (id, patch) => setRateDrafts((p) => ({ ...p, [id]: { ...(p[id] || {}), ...patch } }));
@@ -1416,8 +1460,7 @@ function HamburgerMenu({
     <span style={{display:"inline-flex", gap:6, marginInlineStart: 8}}>
       {settings.role === "viewer" ? (
         <>
-          <button onClick={()=>setTab("signup")} style={styles.buttonGhost}>ثبت نام</button>
-          <button onClick={()=>setTab("login")} style={styles.buttonGhost}>ورود</button>
+          {/* نمایش دکمه‌های ورود/ثبت‌نام برای بیننده حذف شده چون در این نسخه با ورود یکپارچه مدیریت می‌شود */}
         </>
       ) : (
         <>
@@ -1430,6 +1473,11 @@ function HamburgerMenu({
           </div>
             )}
           </span>
+
+          {/* اگر نقش کاربر ادمین باشد، دکمه بازگشت به انتخاب پنل نمایش داده می‌شود */}
+          {settings.role === "admin" && (
+            <button onClick={goToPanelSelection} style={styles.buttonGhost}>بازگشت به انتخاب پنل</button>
+          )}
 
           {/* دکمه خروج همیشه در حالت لاگین دیده می‌شود */}
           <button onClick={doLogout} style={styles.button}>خروج</button>
