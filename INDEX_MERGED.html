@@ -120,10 +120,18 @@
     <!-- Signup form -->
     <div id="signupForm" class="form" style="display:none;">
       <h2>ثبت‌نام کاربر جدید</h2>
-      <label for="signupCompany">شرکت</label>
-      <select id="signupCompany"></select>
-      <label for="signupProject">پروژه</label>
-      <select id="signupProject"></select>
+      <!-- Company code / trade name input -->
+      <label for="signupCompanyCode">نام تجاری شرکت</label>
+      <input type="text" id="signupCompanyCode" placeholder="نام تجاری شرکت" />
+      <div id="signupCompanyMsg" class="msg"></div>
+      <!-- Container for company and project selects.  Hidden until a valid company code is entered -->
+      <div id="companyProjectFields" style="display:none;">
+        <label for="signupCompany">شرکت</label>
+        <!-- Disabled to prevent switching companies once code is validated -->
+        <select id="signupCompany" disabled></select>
+        <label for="signupProject">پروژه</label>
+        <select id="signupProject"></select>
+      </div>
       <label for="signupRole">نقش</label>
       <select id="signupRole">
         <option value="drilling">کارشناس حفاری</option>
@@ -431,6 +439,9 @@
       // Populate the company and project dropdowns in the signup form from stored data
       const companySelect = document.getElementById('signupCompany');
       const projectSelect = document.getElementById('signupProject');
+      const companyCodeInput = document.getElementById('signupCompanyCode');
+      const companyMsg = document.getElementById('signupCompanyMsg');
+      const companyFields = document.getElementById('companyProjectFields');
       /**
        * Fill the company select with all available company names and then
        * populate the corresponding projects for the initially selected company.
@@ -471,6 +482,41 @@
       companySelect.addEventListener('change', updateProjects);
       // Initialise the dropdowns
       populateCompaniesAndProjects();
+
+      /**
+       * Validate the company code entered by the user.  When a valid company
+       * (trade name) is provided, this function reveals the company/project
+       * selectors, populates them with only the matching company and its
+       * projects, and clears any previous error messages.  If the code is
+       * invalid or empty, the selectors are hidden and an error message is
+       * displayed.
+       */
+      function validateCompanyCode() {
+        const code = companyCodeInput.value.trim();
+        // Hide fields and clear previous state
+        companyFields.style.display = 'none';
+        companyMsg.textContent = '';
+        if (!code) {
+          return;
+        }
+        const map = getCompaniesMap();
+        if (map.hasOwnProperty(code)) {
+          // Populate only the selected company
+          companySelect.innerHTML = '';
+          const opt = document.createElement('option');
+          opt.value = code;
+          opt.textContent = code;
+          companySelect.appendChild(opt);
+          // Show fields
+          companyFields.style.display = 'block';
+          // Update projects list for this company
+          updateProjects();
+        } else {
+          companyMsg.textContent = 'کد شرکت پیدا نشد. لطفاً نام تجاری صحیح را وارد کنید.';
+        }
+      }
+      // Validate when the user leaves the company code field
+      companyCodeInput.addEventListener('blur', validateCompanyCode);
 
       // Event handlers for switching between login and signup forms
       document.getElementById('toSignup').addEventListener('click', (ev) => {
@@ -535,6 +581,11 @@
        * automatically redirect.
        */
       document.getElementById('signupBtn').addEventListener('click', () => {
+        // Ensure a valid company code has been entered and the selects are visible
+        if (companyFields.style.display === 'none') {
+          alert('لطفاً ابتدا نام تجاری شرکت معتبر را وارد کنید.');
+          return;
+        }
         const pid = document.getElementById('signupProject').value;
         const company = document.getElementById('signupCompany').value;
         const role = document.getElementById('signupRole').value;
