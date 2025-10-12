@@ -120,6 +120,8 @@
     <!-- Signup form -->
     <div id="signupForm" class="form" style="display:none;">
       <h2>ثبت‌نام کاربر جدید</h2>
+      <label for="signupCompany">شرکت</label>
+      <select id="signupCompany"></select>
       <label for="signupProject">پروژه</label>
       <select id="signupProject"></select>
       <label for="signupRole">نقش</label>
@@ -246,13 +248,32 @@
       /**
        * Retrieve the list of projects from localStorage.  If none are found,
        * return a default array containing a single sample project.  The
-       * project objects have the shape { id: string, name: string }.
+       * project objects have the shape { id: string, name: string, company?: string }.
        */
       function getProjects() {
         const stored = getFromStorage([LS_PROJECTS, ALT_KEYS.projects], null);
         if (Array.isArray(stored)) return stored;
         // Default fallback project
-        return [{ id: SEED_PROJECT_ID, name: "پروژه نمونه" }];
+        return [{ id: SEED_PROJECT_ID, name: "پروژه نمونه", company: "SampleCo" }];
+      }
+
+      /**
+       * Construct a mapping of company names to their associated projects.
+       * Each project may specify a `company` field; if absent, its `name`
+       * is used as the company name.  This helper normalises the list of
+       * projects into a simple { [companyName]: Array<Project> } object.
+       *
+       * @returns {Object} A map from company name to an array of projects
+       */
+      function getCompaniesMap() {
+        const list = getProjects();
+        const map = {};
+        list.forEach(p => {
+          const comp = p.company || p.companyName || p.name;
+          if (!map[comp]) map[comp] = [];
+          map[comp].push(p);
+        });
+        return map;
       }
 
       /**
@@ -407,17 +428,49 @@
         document.getElementById('panelChoice').style.display = 'block';
       }
 
-      // Populate the project dropdown in the signup form from stored projects
+      // Populate the company and project dropdowns in the signup form from stored data
+      const companySelect = document.getElementById('signupCompany');
       const projectSelect = document.getElementById('signupProject');
-      (function populateProjects() {
-        const projects = getProjects();
-        projects.forEach(p => {
+      /**
+       * Fill the company select with all available company names and then
+       * populate the corresponding projects for the initially selected company.
+       */
+      function populateCompaniesAndProjects() {
+        const map = getCompaniesMap();
+        // Clear any existing options
+        companySelect.innerHTML = '';
+        // Populate company options
+        Object.keys(map).forEach(comp => {
+          const opt = document.createElement('option');
+          opt.value = comp;
+          opt.textContent = comp;
+          companySelect.appendChild(opt);
+        });
+        // Populate projects for the first (or current) company
+        updateProjects();
+      }
+      /**
+       * Refresh the project dropdown based on the selected company.  When the
+       * company selection changes, this function looks up the list of
+       * projects belonging to that company and repopulates the project
+       * select element accordingly.
+       */
+      function updateProjects() {
+        const map = getCompaniesMap();
+        const selectedComp = companySelect.value;
+        const projs = map[selectedComp] || [];
+        projectSelect.innerHTML = '';
+        projs.forEach(p => {
           const opt = document.createElement('option');
           opt.value = p.id;
           opt.textContent = p.name;
           projectSelect.appendChild(opt);
         });
-      })();
+      }
+      // Listen for changes on company select
+      companySelect.addEventListener('change', updateProjects);
+      // Initialise the dropdowns
+      populateCompaniesAndProjects();
 
       // Event handlers for switching between login and signup forms
       document.getElementById('toSignup').addEventListener('click', (ev) => {
@@ -483,6 +536,7 @@
        */
       document.getElementById('signupBtn').addEventListener('click', () => {
         const pid = document.getElementById('signupProject').value;
+        const company = document.getElementById('signupCompany').value;
         const role = document.getElementById('signupRole').value;
         const firstName = document.getElementById('signupFirstName').value.trim();
         const lastName = document.getElementById('signupLastName').value.trim();
@@ -526,7 +580,7 @@
           jobTitle: '',
           position: '',
           employmentType: 'company',
-          companyName: '',
+          companyName: company || '',
           address: '',
           password: pwd1,
           createdAt: new Date().toISOString()
