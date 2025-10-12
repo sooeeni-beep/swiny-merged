@@ -863,25 +863,30 @@ table { width: 100%; }
           setTab("dash");
           setLoginNID(""); setLoginPW("");
         };
-        // اصلاح تابع خروج: اکنون پس از خروج به صفحه ورود/انتخاب پنل مشترک هدایت می‌کند.
+        // اصلاح تابع خروج: اکنون تنظیمات کاربر را ریست کرده و پیامی برای
+        // بازگشت به صفحه ورود مشترک ارسال می‌کند.  این پیام توسط
+        // صفحه‌ی والد (INDEX_MERGED.html) دریافت می‌شود و ورود مجدد را
+        // مدیریت می‌کند. در صورت عدم وجود iframe یا خطا، fallback به
+        // صفحه‌ی ورود یکپارچه انجام می‌شود.
         const doLogout = () => {
           // کاربر را به حالت «بیننده» بازگردانید و منو را ببندید
           setSettings({ ...settings, role: "viewer" });
           setSelectedRoleUI("viewer");
           setUserMenuOpen(false);
-          // پس از به‌روزرسانی تنظیمات، به صفحه ورود مشترک هدایت کنید. از setTimeout استفاده می‌شود تا ابتدا state اعمال شود.
-          setTimeout(() => {
-            try {
-              window.location.href = "INDEX_MERGED.html";
-            } catch (e) {
-              // در صورت بروز خطا در هدایت (برای مثال داخل iframe)، به صفحه والد نیز تلاش می‌کنیم هدایت کنیم
-              if (window.parent) {
-                try {
-                  window.parent.location.href = "INDEX_MERGED.html";
-                } catch (_) {}
-              }
+          try {
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage({ type: 'logoutToLogin' }, '*');
+            } else {
+              window.location.href = 'INDEX_MERGED.html';
             }
-          }, 0);
+          } catch (e) {
+            // در صورت بروز خطا، به عنوان fallback به صفحه مشترک برویم
+            try {
+              window.parent.location.href = 'INDEX_MERGED.html';
+            } catch (_) {
+              window.location.href = 'INDEX_MERGED.html';
+            }
+          }
         };
 
         // دکمه بازگشت به انتخاب پنل؛ برای کاربران ادمین نمایش داده می‌شود
