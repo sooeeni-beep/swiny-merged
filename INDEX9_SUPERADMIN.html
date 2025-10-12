@@ -220,6 +220,10 @@ function App() {
               )}
             </div>
             <div style={{display:"flex", alignItems:"center", gap:8}}>
+              {/* اگر کاربر ادمین سطح صفر (superAdmin) یا ادمین سطح یک باشد، دکمه بازگشت به انتخاب پنل نمایش داده می‌شود */}
+              {(superAdmin || (currentUser?.role === "admin" && Number(currentUser.level) === 1)) && (
+                <button className="btn" onClick={() => goToPanelSelection()}>بازگشت به انتخاب پنل</button>
+              )}
               <button className="btn" onClick={() => logout(settings, setSettings)}>خروج</button>
             </div>
           </div>
@@ -318,6 +322,28 @@ function logout(settings, setSettings) {
   const ns = normalizeSettings({ ...settings });
   ns.profilesByProject = {};
   setSettings(ns);
+}
+
+/*
+  در حالت نمایش پنل ادمین، گاهی نیاز است کاربر بدون خروج کامل به صفحه‌ی
+  انتخاب پنل بازگردد (برای سوپر ادمین یا ادمین سطح ۱).  این تابع
+  مشابه نسخه‌ی موجود در پنل شرکت، پیام مناسب را به صفحه‌ی میزبان ارسال
+  می‌کند تا iframe مخفی شود و صفحه‌ی انتخاب پنل دوباره نمایان گردد. در
+  صورتی که این فایل در iframe نباشد یا ارسال پیام ناموفق باشد، کاربر
+  به فایل یکپارچه هدایت می‌شود.
+*/
+function goToPanelSelection() {
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'backToPanelChoice' }, '*');
+    } else {
+      // اگر در iframe نیستیم، مستقیماً به فایل یکپارچه برویم
+      window.location.href = 'INDEX_MERGED.html';
+    }
+  } catch (e) {
+    // در صورت بروز خطا، به عنوان fallback به فایل یکپارچه برویم
+    window.location.href = 'INDEX_MERGED.html';
+  }
 }
 
 function Login({ settings, setSettings, getUsers }) {
