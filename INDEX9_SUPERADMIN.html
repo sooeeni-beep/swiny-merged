@@ -322,6 +322,26 @@ function logout(settings, setSettings) {
   const ns = normalizeSettings({ ...settings });
   ns.profilesByProject = {};
   setSettings(ns);
+
+  /*
+    پس از خروج، ادمین‌های سطح 0 و 1 باید به صفحه‌ی ورود والد (فایل
+    INDEX_MERGED.html) بازگردند تا در صورت نیاز مجدداً پنل مناسب را
+    انتخاب کنند.  با استفاده از setTimeout تضمین می‌شود که ابتدا
+    state به‌روزرسانی شده و سپس صفحه هدایت گردد.  اگر این فایل در
+    iframe باشد و هدایت مستقیم مسدود شود، سعی می‌کنیم از والد نیز
+    هدایت انجام دهیم.
+  */
+  setTimeout(() => {
+    try {
+      window.location.href = 'INDEX_MERGED.html';
+    } catch (e) {
+      if (window.parent) {
+        try {
+          window.parent.location.href = 'INDEX_MERGED.html';
+        } catch (_) {}
+      }
+    }
+  }, 0);
 }
 
 /*
