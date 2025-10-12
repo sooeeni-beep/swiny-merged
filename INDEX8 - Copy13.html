@@ -875,15 +875,24 @@ table { width: 100%; }
           setUserMenuOpen(false);
           try {
             if (window.parent && window.parent !== window) {
-              window.parent.postMessage({ type: 'logoutToLogin' }, '*');
+              // تلاش کنید مستقیماً والد (صفحه‌ی یکپارچه) را به آدرس ورود منتقل کنید.
+              window.parent.location.href = 'INDEX_MERGED.html';
             } else {
+              // اگر در iframe نیستیم، همین صفحه را هدایت کنید.
               window.location.href = 'INDEX_MERGED.html';
             }
           } catch (e) {
-            // در صورت بروز خطا، به عنوان fallback به صفحه مشترک برویم
+            // اگر دسترسی به تغییر مکان والد ممکن نبود (برای مثال به دلیل
+            // محدودیت امنیتی)، از پیام postMessage استفاده می‌کنیم تا
+            // صفحه‌ی والد خودش عمل هدایت را انجام دهد.
             try {
-              window.parent.location.href = 'INDEX_MERGED.html';
+              if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'logoutToLogin' }, '*');
+              } else {
+                window.location.href = 'INDEX_MERGED.html';
+              }
             } catch (_) {
+              // آخرین fallback: همین صفحه را هدایت کنید.
               window.location.href = 'INDEX_MERGED.html';
             }
           }
