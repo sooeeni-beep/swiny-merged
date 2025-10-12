@@ -737,18 +737,31 @@
       // "backToPanelChoice" message (e.g. via window.parent.postMessage), this
       // handler hides the iframe and shows the panel selection screen again.
       window.addEventListener('message', (ev) => {
-        if (ev && ev.data && ev.data.type === 'backToPanelChoice') {
-          // Hide the iframe and show the panel selection.  We also
-          // re-invoke showPanelChoice() so that the company dropdown
-          // and other stateful elements are refreshed without requiring
-          // the user to log in again.  This preserves the logged-in
-          // user and avoids forcing them to re-enter credentials.
-          const iframe = document.getElementById('panelFrame');
-          iframe.style.display = 'none';
-          const choice = document.getElementById('panelChoice');
-          choice.style.display = 'block';
-          if (typeof showPanelChoice === 'function') {
-            showPanelChoice();
+        if (ev && ev.data) {
+          // Handle request to return to panel selection without logging out
+          if (ev.data.type === 'backToPanelChoice') {
+            // Hide the iframe and show the panel selection.  We also
+            // re-invoke showPanelChoice() so that the company dropdown
+            // and other stateful elements are refreshed without requiring
+            // the user to log in again.  This preserves the logged-in
+            // user and avoids forcing them to re-enter credentials.
+            const iframe = document.getElementById('panelFrame');
+            iframe.style.display = 'none';
+            const choice = document.getElementById('panelChoice');
+            choice.style.display = 'block';
+            if (typeof showPanelChoice === 'function') {
+              showPanelChoice();
+            }
+          }
+          // Handle request to fully log out and return to the login screen
+          else if (ev.data.type === 'logoutToLogin') {
+            // Hide the iframe and reset loggedInUser so that the login
+            // form is shown again.  Call showLogin() to reset the UI.
+            const iframe = document.getElementById('panelFrame');
+            iframe.style.display = 'none';
+            // Reset the local loggedInUser flag so future operations treat user as logged out
+            loggedInUser = null;
+            showLogin();
           }
         }
       });
