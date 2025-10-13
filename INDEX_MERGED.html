@@ -5,10 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>ورود | سامانه یکپارچه</title>
 
-  <!-- فونت -->
-  <link rel="preconnect" href="https://cdn.fontapi.ir" crossorigin>
-  <link href="https://cdn.fontapi.ir/css/iranyekanrd" rel="stylesheet">
-
   <style>
     :root{
       --bg-1:#F5F6F8; --bg-2:#ECEEF2;
@@ -19,7 +15,7 @@
     }
     *{box-sizing:border-box} html,body{height:100%}
     body{
-      margin:0; font-family:"IRANYekanRD",-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+      margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
       background: radial-gradient(1200px 900px at 110% -10%, rgba(255,213,77,.18) 0%, transparent 45%),
                   linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
       color:var(--text);
@@ -38,7 +34,6 @@
     }
     .input:focus,.select:focus{border-color:#FFDF77; box-shadow:var(--focus)}
 
-    /* فیلد پسورد: فضای کافی برای چشم */
     .field.password .input{padding-left:46px;}
     .toggle{
       position:absolute; left:12px; top:50%; transform:translateY(-50%);
@@ -66,7 +61,6 @@
     .foot a{color:#7C5E00; text-decoration:none}
     .foot a:hover{text-decoration:underline}
 
-    /* بخش‌هایی که منطق اپ به آنها وصل است */
     #signupForm{display:none}
     #panelChoice{display:none; margin-top:18px}
     .panel-buttons{display:flex; gap:10px; flex-wrap:wrap; margin-top:8px}
@@ -97,7 +91,6 @@
         <div class="field password">
           <div class="label">رمز عبور</div>
           <input id="passwordInput" type="password" class="input" placeholder="رمز عبور" autocomplete="current-password"/>
-          <!-- آیکن چشم داخل کادر -->
           <button id="togglePwd" type="button" class="toggle" aria-label="نمایش/مخفی کردن رمز">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
@@ -108,8 +101,7 @@
 
         <div class="row">
           <label><input type="checkbox" id="rememberMe"> مرا به خاطر بسپار</label>
-          <a id="forgotLink" href="javascript:void(0)"><!-- فعلاً غیرفعال --></a>
-          <!-- فقط نمایش ظاهری «فراموشی رمز؟» بدون عملکرد -->
+          <!-- فراموشی رمز فعلاً بدون لینک -->
           <span style="color:#94a3b8">فراموشی رمز؟</span>
         </div>
 
@@ -125,13 +117,11 @@
         <h1 class="title">ثبت‌نام</h1>
         <div class="subtitle">ابتدا نام تجاری شرکت یا کد پروژه را وارد کنید</div>
 
-        <!-- مرحله ۱: فقط کد -->
         <div class="field">
           <div class="label">نام تجاری شرکت/کد پروژه</div>
           <input id="signupCompanyCode" class="input" placeholder="SampleCo / P-123"/>
         </div>
 
-        <!-- مرحله ۲: فیلدهای تکمیلی (پس از تأیید کد نمایش داده می‌شود) -->
         <div id="companyFields" style="display:none">
           <div class="field">
             <div class="label">شرکت</div>
@@ -174,12 +164,10 @@
         </div>
       </div>
 
-      <!-- Iframe نمایش پنل‌ها -->
       <iframe id="panelFrame" src=""></iframe>
     </div>
   </div>
 
-  <!-- اسکریپت‌های سبک UI (با منطق فعلی شما سازگار) -->
   <script>
     (function(){
       /* ===== چشم رمز ===== */
@@ -200,31 +188,32 @@
       const loginForm = document.getElementById('loginForm');
       const loginBtn  = document.getElementById('loginBtn');
 
+      function safeCall(fnName, payload){
+        try{
+          if (typeof window[fnName] === 'function'){ window[fnName](payload); }
+        }catch(err){ console.warn(fnName+' error:', err); }
+      }
+
       function submitLogin(){
         const payload = {
           nationalId: (document.getElementById('nationalIdInput')||{}).value || '',
           password:   (document.getElementById('passwordInput')||{}).value || '',
           remember:   (document.getElementById('rememberMe')||{}).checked || false
         };
-        // رویداد استاندارد برای منطق موجود شما
-        window.dispatchEvent(new CustomEvent('ui:login', {detail: payload}));
-        // توابع احتمالی شما
-        if (typeof window.onUILoginSubmit === 'function') window.onUILoginSubmit(payload);
-        if (typeof window.handleLogin      === 'function') window.handleLogin(payload);
-        if (typeof window.login            === 'function') window.login(payload);
+        console.log('[UI] login clicked', payload);
+        try{ window.dispatchEvent(new CustomEvent('ui:login', {detail: payload})); }catch(_){}
+        safeCall('onUILoginSubmit', payload);
+        safeCall('handleLogin', payload);
+        safeCall('login', payload);
       }
 
       if (loginForm){
         loginForm.addEventListener('submit', function(e){ e.preventDefault(); submitLogin(); });
       }
       if (loginBtn){
-        loginBtn.addEventListener('click', function(){
-          if (loginForm && typeof loginForm.requestSubmit === 'function') loginForm.requestSubmit();
-          else if (loginForm){
-            // fallback برای قدیمی‌ترها
-            const ev = new Event('submit', {cancelable:true});
-            loginForm.dispatchEvent(ev);
-          } else { submitLogin(); }
+        loginBtn.addEventListener('click', function(e){
+          e.preventDefault();
+          submitLogin(); // مستقیم، بدون requestSubmit تا وابستگی نباشد
         });
       }
 
@@ -236,7 +225,7 @@
         const lShow = loginForm.style.display !== 'none';
         loginForm.style.display = lShow ? 'none' : 'block';
         signupForm.style.display = lShow ? 'block' : 'none';
-        window.dispatchEvent(new Event('ui:toggleAuth'));
+        try{ window.dispatchEvent(new Event('ui:toggleAuth')); }catch(_){}
       }
       if (toSignup) toSignup.addEventListener('click', function(e){ e.preventDefault(); toggleAuth(); });
 
@@ -245,6 +234,9 @@
       const signupBtn = document.getElementById('signupBtn');
       const codeInput = document.getElementById('signupCompanyCode');
 
+      function safeDispatch(name, detail){
+        try{ window.dispatchEvent(new CustomEvent(name, {detail})); }catch(_){}
+      }
       function doSignup(){
         const payload = {
           companyCode: (codeInput||{}).value || '',
@@ -254,20 +246,19 @@
           nationalId:  (document.getElementById('signupNid')||{}).value || '',
           password:    (document.getElementById('signupPwd')||{}).value || ''
         };
-        window.dispatchEvent(new CustomEvent('ui:signup', {detail: payload}));
-        if (typeof window.onUISignup    === 'function') window.onUISignup(payload);
-        if (typeof window.handleSignup  === 'function') window.handleSignup(payload);
-        if (typeof window.signup        === 'function') window.signup(payload);
+        console.log('[UI] signup submit', payload);
+        safeDispatch('ui:signup', payload);
+        safeCall('onUISignup',   payload);
+        safeCall('handleSignup', payload);
+        safeCall('signup',       payload);
         // بازگشت به ورود
-        signupBtn.textContent = 'ادامه';
+        if (signupBtn) signupBtn.textContent = 'ادامه';
         toggleAuth();
       }
 
       if (signupBtn){
         signupBtn.addEventListener('click', function(){
-          // مرحله ۱ → نمایش فیلدهای تکمیلی
           if (companyFields && companyFields.style.display === 'none'){
-            // اگر کد وارد نشده بود، چیزی نشان نده
             if (!codeInput || !codeInput.value.trim()){
               const msg = document.getElementById('companyCodeMsg');
               if (msg) msg.textContent = 'لطفاً کد یا نام تجاری شرکت را وارد کنید.';
@@ -279,17 +270,14 @@
             if (msg) msg.textContent = 'کد تأیید شد؛ لطفاً اطلاعات زیر را کامل کنید.';
             return;
           }
-          // مرحله ۲ → ثبت‌نام و برگشت به ورود
           doSignup();
         });
       }
 
-      // فراموشی رمز فعلاً غیرفعال (نمایشی)
+      // فراموشی رمز فعلاً غیرفعال
       const forgot = document.getElementById('forgotLink');
       if (forgot){ forgot.addEventListener('click', function(e){ e.preventDefault(); }); }
     })();
   </script>
-
-  <!-- اگر اسکریپت اصلی پروژه‌تان جداست، آن را در انتهای همین فایل اضافه کنید تا به همین IDها وصل بماند -->
 </body>
 </html>
