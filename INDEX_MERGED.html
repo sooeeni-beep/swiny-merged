@@ -1,98 +1,98 @@
-<style id="swiny-theme-v2">
-  /* ===== Theme Vars ===== */
-  :root{
-    --bg-1:#F5F6F8; --bg-2:#ECEEF2;
-    --card:#FFFFFF; --text:#111827; --muted:#6B7280; --line:#E5E7EB;
-    --brand:#FFD54D; --brand-600:#F4C118; --ring:rgba(255,213,77,.35);
-    --shadow:0 16px 44px rgba(0,0,0,.12);
-  }
+/* ========== Swiny light theme (safe surface-only) ========== */
+/* پالت طوسی + زرد */
+:root{
+  --bg-1:#F5F6F8; --bg-2:#ECEEF2;
+  --card:#FFFFFF; --text:#111827; --muted:#6B7280; --line:#E5E7EB;
+  --brand:#FFD54D; --brand-600:#F4C118; --ring:rgba(255,213,77,.35);
+  --shadow:0 16px 44px rgba(0,0,0,.12);
+}
 
-  /* ===== Page background (ملایم طوسی + هاله زرد) ===== */
-  body{
-    background:
-      radial-gradient(1200px 900px at 105% -10%, rgba(255,213,77,.22) 0%, transparent 45%),
-      linear-gradient(180deg,var(--bg-1),var(--bg-2)) !important;
-    color:var(--text) !important;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,Arial,sans-serif !important;
-  }
+/* پس‌زمینه‌ٔ ملایم؛ فقط اگر body موجود است */
+html,body{min-height:100%}
+body{
+  background:
+    radial-gradient(1200px 900px at 105% -10%, rgba(255,213,77,.22) 0%, transparent 45%),
+    linear-gradient(180deg,var(--bg-1),var(--bg-2));
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,Arial,sans-serif;
+}
 
-  /* ===== ظرف‌ها: کارت‌های سفید با سایه نرم ===== */
-  #loginForm, #signupForm, #panelChoice{
-    background:var(--card) !important;
-    border:1px solid var(--line) !important;
-    border-radius:24px !important;
-    padding:22px 20px !important;
-    box-shadow:var(--shadow) !important;
-    margin:0 auto 18px !important;
-    max-width: 560px !important;
-  }
+/* کارت‌های اصلی بدون تغییر منطق: فقط ظاهر قشنگ‌تر */
+#loginForm, #signupForm, #panelChoice{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:22px 20px;
+  box-shadow:var(--shadow);
+  margin: 16px auto;
+  max-width: 560px;
+}
 
-  /* ===== تیتر و زیرتیتر ===== */
-  #loginForm h1, #signupForm h1, #panelChoice h1,
-  #loginForm .title, #signupForm .title, #panelChoice .title{
-    font-size:24px !important; font-weight:800 !important; margin:0 0 8px !important;
-  }
-  #loginForm .subtitle, #signupForm .subtitle, #panelChoice .subtitle,
-  #loginForm p.sub, #signupForm p.sub, #panelChoice p.sub{
-    color:var(--muted) !important; font-size:13px !important; margin:0 0 16px !important;
-  }
+/* تیتر و توضیح */
+#loginForm h1, #signupForm h1, #panelChoice h1,
+#loginForm .title, #signupForm .title, #panelChoice .title{
+  font-size:24px; font-weight:800; margin:0 0 8px;
+}
+#loginForm .subtitle, #signupForm .subtitle, #panelChoice .subtitle,
+#loginForm p.sub, #signupForm p.sub, #panelChoice p.sub{
+  color:var(--muted); font-size:13px; margin:0 0 16px;
+}
 
-  /* ===== ورودی‌ها ===== */
-  input, select{
-    width:100% !important; padding:12px 14px !important;
-    border:1px solid #D1D5DB !important; border-radius:14px !important; background:#fff !important;
-    outline:none !important; transition:border-color .15s, box-shadow .15s !important;
-  }
-  input:focus, select:focus{
-    border-color:#FFDF77 !important; box-shadow:0 0 0 4px var(--ring) !important;
-  }
-  label{ font-size:12.5px !important; color:#374151 !important; display:block !important; margin:10px 0 6px !important; }
+/* ورودی‌ها (بدون دستکاری display) */
+input, select{
+  width:100%; padding:12px 14px;
+  border:1px solid #D1D5DB; border-radius:14px; background:#fff; color:var(--text);
+  outline:none; transition:border-color .15s, box-shadow .15s;
+}
+input:focus, select:focus{
+  border-color:#FFDF77; box-shadow:0 0 0 4px var(--ring);
+}
+label{ display:block; margin:10px 0 6px; font-size:12.5px; color:#374151; }
 
-  /* ===== آیکن چشم داخل کادر پسورد ===== */
-  /* اگر ساختار شما .field/ .toggle/ #passwordInput متفاوت است، این سه خط کافی است: */
-  .field.password .input, 
-  .field.eye-left input, 
-  #passwordInput{ padding-left:48px !important; }
-  .toggle, #loginPwdEye, #signupPwdEye{
-    position:absolute !important; left:10px !important; top:50% !important; transform:translateY(-50%) !important;
-    width:30px !important; height:30px !important; display:grid !important; place-items:center !important;
-    cursor:pointer !important; border-radius:50% !important; background:#fff7d1 !important; border:1px solid #f4e28f !important;
-  }
-  .toggle svg, #loginPwdEye svg, #signupPwdEye svg{ width:18px !important; height:18px !important; color:#7C5E00 !important; }
+/* چشم داخل کادر پسورد (اگر این شناسه‌ها وجود دارند) */
+.field.password .input, .field.eye-left input, #passwordInput, #loginPassword, #signupPassword {
+  padding-left:48px;
+}
+.toggle, #loginPwdEye, #signupPwdEye{
+  position:absolute; left:10px; top:50%; transform:translateY(-50%);
+  width:30px; height:30px; display:grid; place-items:center;
+  cursor:pointer; border-radius:50%;
+  background:#fff7d1; border:1px solid #f4e28f;
+}
+.toggle svg, #loginPwdEye svg, #signupPwdEye svg { width:18px; height:18px; color:#7C5E00; }
 
-  /* ===== دکمه‌ها: زرد گرادیانی با میکرو انیمیشن ===== */
-  button, .panel-buttons a{
-    border:none !important; border-radius:16px !important; padding:12px 16px !important; font-weight:800 !important;
-    transition:transform .12s ease, box-shadow .12s ease, filter .12s ease !important;
-  }
-  #loginBtn, #signupBtn, #companyPanelBtn{
-    background:linear-gradient(180deg,var(--brand),var(--brand-600)) !important; 
-    color:#3a2c00 !important; 
-    box-shadow:0 12px 26px rgba(255,213,77,.45) !important;
-    width:100% !important; display:block !important; margin-top:10px !important;
-  }
-  #adminPanelBtn{
-    background:#475569 !important; color:#fff !important; border:1px solid #475569 !important;
-  }
-  #loginBtn:hover, #signupBtn:hover, #companyPanelBtn:hover, #adminPanelBtn:hover{
-    filter:saturate(1.04) !important; transform:translateY(-2px) !important; 
-    box-shadow:0 16px 34px rgba(0,0,0,.12) !important;
-  }
+/* دکمه‌های اصلی زرد */
+#loginBtn, #signupBtn, #companyPanelBtn{
+  background:linear-gradient(180deg,var(--brand),var(--brand-600));
+  color:#3a2c00; font-weight:800;
+  border:none; border-radius:16px; padding:12px 16px;
+  box-shadow:0 12px 26px rgba(255,213,77,.45);
+  transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+#loginBtn:hover, #signupBtn:hover, #companyPanelBtn:hover{
+  filter:saturate(1.04); transform:translateY(-2px);
+  box-shadow:0 16px 34px rgba(255,213,77,.58);
+}
 
-  /* ===== ردیف لینک‌ها ===== */
-  .muted-row{ display:flex !important; align-items:center !important; justify-content:space-between !important; 
-    margin-top:10px !important; font-size:12px !important; color:#64748b !important; }
-  .muted-row a{ color:#7C5E00 !important; text-decoration:none !important; }
-  .muted-row a:hover{ text-decoration:underline !important; }
+/* دکمه پنل ادمین خاکستری تیره */
+#adminPanelBtn{
+  background:#475569; color:#fff; border:1px solid #475569;
+  border-radius:12px; padding:12px 14px;
+}
 
-  /* ===== iframe ===== */
-  #panelFrame{
-    display:none; width:100%; min-height:88vh; border:none; border-radius:22px; box-shadow:var(--shadow);
-    margin: 8px auto 0 !important; max-width: 980px !important;
-  }
+/* ردیف لینک‌های کم‌رنگ */
+.muted-row{ display:flex; align-items:center; justify-content:space-between;
+  margin-top:10px; font-size:12px; color:#64748b; }
+.muted-row a{ color:#7C5E00; text-decoration:none; }
+.muted-row a:hover{ text-decoration:underline; }
 
-  /* ===== واکنش‌گرا ===== */
-  @media (max-width:560px){
-    #loginForm, #signupForm, #panelChoice{ border-radius:20px !important; padding:18px 16px !important; }
-  }
-</style>
+/* iframe فقط ظاهر (بدون تغییر display) */
+#panelFrame{
+  width:100%; min-height:88vh; border:none; border-radius:22px; box-shadow:var(--shadow);
+  margin: 8px auto 0; max-width: 980px;
+}
+
+/* کوچک‌ترها */
+@media (max-width:560px){
+  #loginForm, #signupForm, #panelChoice{ border-radius:20px; padding:18px 16px; }
+}
