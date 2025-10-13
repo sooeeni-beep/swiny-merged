@@ -1,527 +1,98 @@
-<!doctype html>
-<html lang="fa" dir="rtl">
-  <head>
-    <meta charset="utf-8" />
-    <title>ورود و ثبت‌نام — Swiny</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- ⚠️ هیچ منبع خارجی بارگذاری نمی‌شود تا DNS/CSP مشکل‌ساز نشود -->
-    <style>
-      /* ===================== Theme (Grey + Yellow) ===================== */
-      :root{
-        --bg-1:#F5F6F8; --bg-2:#ECEEF2;           /* پس‌زمینه طوسی ملایم */
-        --card:#FFFFFF;                           /* کارت سفید */
-        --text:#111827; --muted:#6B7280;          /* متن طوسی */
-        --line:#E5E7EB;                           /* خطوط کمرنگ */
-        --brand:#FFD54D; --brand-600:#F4C118;     /* زرد اصلی/هاور */
-        --ring:rgba(255,213,77,.35);              /* حلقه فوکوس */
-        --shadow:0 16px 44px rgba(0,0,0,.12);     /* سایه کارت */
-        --radius:20px;
-      }
+<style id="swiny-theme-v2">
+  /* ===== Theme Vars ===== */
+  :root{
+    --bg-1:#F5F6F8; --bg-2:#ECEEF2;
+    --card:#FFFFFF; --text:#111827; --muted:#6B7280; --line:#E5E7EB;
+    --brand:#FFD54D; --brand-600:#F4C118; --ring:rgba(255,213,77,.35);
+    --shadow:0 16px 44px rgba(0,0,0,.12);
+  }
 
-      *{box-sizing:border-box}
-      html,body{height:100%}
-      body{
-        margin:0; color:var(--text);
-        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,Arial,sans-serif;
-        background:
-          radial-gradient(1200px 900px at 105% -10%, rgba(255,213,77,.22) 0%, transparent 45%),
-          linear-gradient(180deg,var(--bg-1) 0%, var(--bg-2) 100%);
-        padding:24px 12px;
-      }
+  /* ===== Page background (ملایم طوسی + هاله زرد) ===== */
+  body{
+    background:
+      radial-gradient(1200px 900px at 105% -10%, rgba(255,213,77,.22) 0%, transparent 45%),
+      linear-gradient(180deg,var(--bg-1),var(--bg-2)) !important;
+    color:var(--text) !important;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,Arial,sans-serif !important;
+  }
 
-      /* ===================== Shell & Cards ===================== */
-      .shell{max-width:980px;margin:0 auto}
-      .stack{display:grid; gap:22px}
-      .form, .panel{
-        background:var(--card);
-        border:1px solid var(--line);
-        border-radius:24px;
-        padding:22px 20px;
-        box-shadow:var(--shadow);
-      }
+  /* ===== ظرف‌ها: کارت‌های سفید با سایه نرم ===== */
+  #loginForm, #signupForm, #panelChoice{
+    background:var(--card) !important;
+    border:1px solid var(--line) !important;
+    border-radius:24px !important;
+    padding:22px 20px !important;
+    box-shadow:var(--shadow) !important;
+    margin:0 auto 18px !important;
+    max-width: 560px !important;
+  }
 
-      h2{margin:0 0 14px; font-size:22px; font-weight:800}
-      p.sub{margin:2px 0 16px; color:var(--muted); font-size:13px}
+  /* ===== تیتر و زیرتیتر ===== */
+  #loginForm h1, #signupForm h1, #panelChoice h1,
+  #loginForm .title, #signupForm .title, #panelChoice .title{
+    font-size:24px !important; font-weight:800 !important; margin:0 0 8px !important;
+  }
+  #loginForm .subtitle, #signupForm .subtitle, #panelChoice .subtitle,
+  #loginForm p.sub, #signupForm p.sub, #panelChoice p.sub{
+    color:var(--muted) !important; font-size:13px !important; margin:0 0 16px !important;
+  }
 
-      /* ===================== Inputs ===================== */
-      label{display:block; margin-top:10px; font-size:13px; color:#374151}
-      input, select{
-        width:100%; margin-top:6px; padding:12px 14px;
-        border:1px solid #D1D5DB; border-radius:14px; background:#fff; color:var(--text);
-        outline:none; transition:border-color .15s, box-shadow .15s;
-      }
-      input:focus, select:focus{border-color:#FFDF77; box-shadow:0 0 0 4px var(--ring)}
+  /* ===== ورودی‌ها ===== */
+  input, select{
+    width:100% !important; padding:12px 14px !important;
+    border:1px solid #D1D5DB !important; border-radius:14px !important; background:#fff !important;
+    outline:none !important; transition:border-color .15s, box-shadow .15s !important;
+  }
+  input:focus, select:focus{
+    border-color:#FFDF77 !important; box-shadow:0 0 0 4px var(--ring) !important;
+  }
+  label{ font-size:12.5px !important; color:#374151 !important; display:block !important; margin:10px 0 6px !important; }
 
-      /* Password eye inside field */
-      .field{position:relative}
-      .field .eye{
-        position:absolute; left:10px; top:50%; transform:translateY(-50%);
-        width:30px; height:30px; display:grid; place-items:center; cursor:pointer;
-        background:#fff7d1; border:1px solid #f4e28f; border-radius:50%;
-      }
-      .field .eye svg{width:18px; height:18px; color:#7C5E00}
-      /* leave space for the eye */
-      .field.eye-left input{padding-left:50px}
+  /* ===== آیکن چشم داخل کادر پسورد ===== */
+  /* اگر ساختار شما .field/ .toggle/ #passwordInput متفاوت است، این سه خط کافی است: */
+  .field.password .input, 
+  .field.eye-left input, 
+  #passwordInput{ padding-left:48px !important; }
+  .toggle, #loginPwdEye, #signupPwdEye{
+    position:absolute !important; left:10px !important; top:50% !important; transform:translateY(-50%) !important;
+    width:30px !important; height:30px !important; display:grid !important; place-items:center !important;
+    cursor:pointer !important; border-radius:50% !important; background:#fff7d1 !important; border:1px solid #f4e28f !important;
+  }
+  .toggle svg, #loginPwdEye svg, #signupPwdEye svg{ width:18px !important; height:18px !important; color:#7C5E00 !important; }
 
-      /* ===================== Actions ===================== */
-      button, .btn-link{
-        appearance:none; border:none; cursor:pointer;
-        border-radius:16px; padding:12px 16px; font-weight:800;
-        transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;
-      }
-      .btn{
-        width:100%;
-        background:linear-gradient(180deg,var(--brand) 0%, var(--brand-600) 100%);
-        color:#3a2c00; box-shadow:0 12px 26px rgba(255,213,77,.45);
-      }
-      .btn:hover{filter:saturate(1.04); transform:translateY(-2px); box-shadow:0 16px 34px rgba(255,213,77,.58)}
-      .btn:disabled{opacity:.6; cursor:not-allowed}
+  /* ===== دکمه‌ها: زرد گرادیانی با میکرو انیمیشن ===== */
+  button, .panel-buttons a{
+    border:none !important; border-radius:16px !important; padding:12px 16px !important; font-weight:800 !important;
+    transition:transform .12s ease, box-shadow .12s ease, filter .12s ease !important;
+  }
+  #loginBtn, #signupBtn, #companyPanelBtn{
+    background:linear-gradient(180deg,var(--brand),var(--brand-600)) !important; 
+    color:#3a2c00 !important; 
+    box-shadow:0 12px 26px rgba(255,213,77,.45) !important;
+    width:100% !important; display:block !important; margin-top:10px !important;
+  }
+  #adminPanelBtn{
+    background:#475569 !important; color:#fff !important; border:1px solid #475569 !important;
+  }
+  #loginBtn:hover, #signupBtn:hover, #companyPanelBtn:hover, #adminPanelBtn:hover{
+    filter:saturate(1.04) !important; transform:translateY(-2px) !important; 
+    box-shadow:0 16px 34px rgba(0,0,0,.12) !important;
+  }
 
-      .muted-row{
-        display:flex; align-items:center; justify-content:space-between;
-        margin-top:10px; font-size:12px; color:#64748b;
-      }
-      .muted-row a{color:#7C5E00; text-decoration:none}
-      .muted-row a:hover{text-decoration:underline}
+  /* ===== ردیف لینک‌ها ===== */
+  .muted-row{ display:flex !important; align-items:center !important; justify-content:space-between !important; 
+    margin-top:10px !important; font-size:12px !important; color:#64748b !important; }
+  .muted-row a{ color:#7C5E00 !important; text-decoration:none !important; }
+  .muted-row a:hover{ text-decoration:underline !important; }
 
-      /* panel choice buttons */
-      .panel-buttons{display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end}
-      .panel-buttons a, .panel-buttons button{
-        text-decoration:none; text-align:center; line-height:1; padding:12px 14px; border-radius:12px;
-        border:1px solid var(--line); background:#fff; color:#111827;
-        box-shadow:0 8px 20px rgba(0,0,0,.06);
-      }
-      #companyPanelBtn{background:var(--brand); border-color:#f8e69b}
-      #adminPanelBtn{background:#475569; color:#fff; border-color:#475569}
+  /* ===== iframe ===== */
+  #panelFrame{
+    display:none; width:100%; min-height:88vh; border:none; border-radius:22px; box-shadow:var(--shadow);
+    margin: 8px auto 0 !important; max-width: 980px !important;
+  }
 
-      /* messages */
-      .msg{margin-top:10px; font-size:13px; color:#059669}
-
-      /* iframe */
-      #panelFrame{display:none; width:100%; min-height:88vh; border:none; border-radius:22px; box-shadow:var(--shadow)}
-
-      /* narrow */
-      @media (max-width:560px){
-        .form, .panel{border-radius:20px; padding:18px 16px}
-        h2{font-size:20px}
-      }
-    </style>
-  </head>
-  <body>
-    <div class="shell">
-      <div class="stack">
-        <!-- ===== Login form ===== -->
-        <div id="loginForm" class="form" style="display:block;">
-          <h2>ورود به سیستم</h2>
-          <p class="sub">برای ورود، کد ملی و رمز عبور را وارد کنید</p>
-
-          <label for="loginNationalId">کد ملی</label>
-          <input type="text" id="loginNationalId" placeholder="مثلاً 0077541308" />
-
-          <label for="loginPassword">رمز عبور</label>
-          <div class="field eye-left">
-            <input type="password" id="loginPassword" placeholder="مثلاً admin" />
-            <button type="button" class="eye" id="loginPwdEye" aria-label="نمایش/مخفی کردن رمز">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
-          </div>
-
-          <div class="muted-row">
-            <label style="display:flex;align-items:center;gap:8px">
-              <input type="checkbox" id="rememberMe"> مرا به خاطر بسپار
-            </label>
-            <span style="color:#94a3b8">فراموشی رمز؟</span>
-          </div>
-
-          <button id="loginBtn" class="btn">ورود</button>
-          <div class="muted-row" style="justify-content:center; gap:6px">
-            <span>حسابی ندارید؟</span>
-            <a class="btn-link" id="toSignup" href="javascript:void(0)" style="color:#7C5E00;font-weight:700">ثبت‌نام</a>
-          </div>
-        </div>
-
-        <!-- ===== Signup form ===== -->
-        <div id="signupForm" class="form" style="display:none;">
-          <h2>ثبت‌نام کاربر جدید</h2>
-          <p class="sub">ابتدا نام تجاری شرکت/کد پروژه را وارد کنید</p>
-
-          <label for="signupCompanyCode">نام تجاری شرکت</label>
-          <input type="text" id="signupCompanyCode" placeholder="SampleCo" />
-          <div id="signupCompanyMsg" class="msg"></div>
-
-          <!-- شرکت/پروژه پس از اعتبارسنجی کد -->
-          <div id="companyProjectFields" style="display:none;">
-            <label for="signupCompany">شرکت</label>
-            <select id="signupCompany" disabled></select>
-
-            <label for="signupProject">پروژه</label>
-            <select id="signupProject"></select>
-          </div>
-
-          <label for="signupRole">نقش</label>
-          <select id="signupRole">
-            <option value="drilling">کارشناس حفاری</option>
-            <option value="contractor">پیمانکار</option>
-            <option value="checker">بازرس</option>
-            <option value="planner">برنامه‌ریز</option>
-          </select>
-
-          <label for="signupFirstName">نام</label>
-          <input type="text" id="signupFirstName" />
-
-          <label for="signupLastName">نام خانوادگی</label>
-          <input type="text" id="signupLastName" />
-
-          <label for="signupNationalId">کد ملی</label>
-          <input type="text" id="signupNationalId" />
-
-          <label for="signupPassword">رمز عبور</label>
-          <div class="field eye-left">
-            <input id="signupPassword" type="password" placeholder="رمز عبور"/>
-            <button type="button" class="eye" id="signupPwdEye" aria-label="نمایش/مخفی کردن رمز">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
-          </div>
-
-          <label for="signupConfirm">تکرار پسورد</label>
-          <input type="password" id="signupConfirm" />
-
-          <label style="display:flex;align-items:center;gap:8px;margin-top:12px">
-            <input type="checkbox" id="signupAccept" /> قوانین را می‌پذیرم
-          </label>
-
-          <button id="signupBtn" class="btn">تأیید ثبت‌نام</button>
-          <div class="muted-row" style="justify-content:center; gap:6px">
-            <a id="toLogin" href="javascript:void(0)" style="color:#7C5E00;font-weight:700">بازگشت به ورود</a>
-          </div>
-          <div id="signupMsg" class="msg"></div>
-        </div>
-
-        <!-- ===== Panel choice ===== -->
-        <div id="panelChoice" class="panel" style="display:none;">
-          <h2>انتخاب پنل</h2>
-          <p class="sub">کدام پنل را می‌خواهید باز کنید؟</p>
-
-          <div class="panel-buttons">
-            <div id="companySelectForPanel" style="display:none;">
-              <label for="panelCompanySelect" style="font-size:13px; margin-bottom:6px; display:block;">انتخاب شرکت</label>
-              <select id="panelCompanySelect" style="width:220px; padding:10px 12px; border-radius:12px; border:1px solid #D1D5DB;"></select>
-            </div>
-
-            <a id="companyPanelBtn" class="secondary" href="#">پنل شرکت</a>
-            <a id="adminPanelBtn" href="#">پنل ادمین</a>
-          </div>
-        </div>
-
-        <!-- ===== Iframe host ===== -->
-        <iframe id="panelFrame"></iframe>
-      </div>
-    </div>
-
-    <!-- ============== ORIGINAL SCRIPT (logic untouched) ============== -->
-    <script>
-    (() => {
-      const LS_USERS = "swiny.usersByProject.v1";
-      const LS_SETTINGS = "swiny.settings.v1";
-      const LS_PROJECTS = "swiny.projects.v1";
-      const ALT_KEYS = {
-        users: "swiny.drilling.users.v1",
-        settings: "swiny.drilling.settings.v5",
-        projects: "swiny.drilling.projects.v1"
-      };
-      const SEED_PROJECT_ID = "P-SEED-0";
-
-      function getFromStorage(keys, fallback) {
-        for (const k of keys) {
-          const raw = localStorage.getItem(k);
-          if (raw) {
-            try {
-              const val = JSON.parse(raw);
-              if (val !== undefined && val !== null) return val;
-            } catch (e) {}
-          }
-        }
-        return fallback;
-      }
-      function setInStorage(keys, value) {
-        const serialised = JSON.stringify(value);
-        keys.forEach(k => { try { localStorage.setItem(k, serialised); } catch (e) {} });
-      }
-      function getProjects() {
-        const stored = getFromStorage([LS_PROJECTS, ALT_KEYS.projects], null);
-        if (Array.isArray(stored)) return stored;
-        return [{ id: SEED_PROJECT_ID, name: "پروژه نمونه", company: "SampleCo" }];
-      }
-      function getCompaniesMap() {
-        const list = getProjects();
-        const map = {};
-        list.forEach(p => {
-          const comp = p.company || p.companyName || p.name;
-          if (!map[comp]) map[comp] = [];
-          map[comp].push(p);
-        });
-        return map;
-      }
-      function getUsersByProject() {
-        const obj = getFromStorage([LS_USERS, ALT_KEYS.users], {});
-        return obj && typeof obj === 'object' ? obj : {};
-      }
-      function setUsersByProject(obj) { setInStorage([LS_USERS, ALT_KEYS.users], obj); }
-      function getSettings() {
-        const obj = getFromStorage([LS_SETTINGS, ALT_KEYS.settings], {});
-        return obj && typeof obj === 'object' ? obj : {};
-      }
-      function setSettings(obj) { setInStorage([LS_SETTINGS, ALT_KEYS.settings], obj); }
-      function uuid() {
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-        return 'id-' + Math.random().toString(36).slice(2) + Date.now();
-      }
-      function setLoggedInSettings(user, projectId) {
-        const settings = getSettings();
-        const pid = projectId || user.projectId;
-        settings.projectId = pid;
-        settings.role = user.role;
-        settings.profilesByProject = settings.profilesByProject || {};
-        settings.profilesByProject[pid] = settings.profilesByProject[pid] || {};
-        const full = ((user.firstName || '') + ' ' + (user.lastName || '')).trim();
-        settings.profilesByProject[pid][user.role] = full;
-        settings.staffByProject = settings.staffByProject || {};
-        settings.staffByProject[pid] = settings.staffByProject[pid] || {
-          admin: [], checker: [], drilling: [], planner: [], contractor: []
-        };
-        const list = settings.staffByProject[pid][user.role] || [];
-        if (full && !list.includes(full)) { list.unshift(full); }
-        settings.staffByProject[pid][user.role] = list;
-        settings.passwordsPerPersonByProject = settings.passwordsPerPersonByProject || {};
-        settings.passwordsPerPersonByProject[pid] = settings.passwordsPerPersonByProject[pid] || {};
-        settings.passwordsPerPersonByProject[pid][user.role] = settings.passwordsPerPersonByProject[pid][user.role] || {};
-        settings.passwordsPerPersonByProject[pid][user.role][full] = user.password;
-        setSettings(settings);
-      }
-      function showIframeFor(fileName) {
-        const frame = document.getElementById('panelFrame');
-        const basePath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-        frame.src = basePath + fileName;
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('signupForm').style.display = 'none';
-        document.getElementById('panelChoice').style.display = 'none';
-        frame.style.display = 'block';
-      }
-      let loggedInUser = null;
-      function showLogin() {
-        document.getElementById('loginForm').style.display = 'block';
-        document.getElementById('signupForm').style.display = 'none';
-        document.getElementById('panelChoice').style.display = 'none';
-      }
-      function showSignup() {
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('signupForm').style.display = 'block';
-        document.getElementById('panelChoice').style.display = 'none';
-        document.getElementById('signupMsg').textContent = '';
-      }
-      function showPanelChoice() {
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('signupForm').style.display = 'none';
-        const panelChoiceEl = document.getElementById('panelChoice');
-        panelChoiceEl.style.display = 'block';
-        const compDiv = document.getElementById('companySelectForPanel');
-        const compSel = document.getElementById('panelCompanySelect');
-        if (loggedInUser && loggedInUser.level === 0) {
-          const map = getCompaniesMap();
-          compSel.innerHTML = '';
-          Object.keys(map).forEach(comp => {
-            const opt = document.createElement('option');
-            opt.value = comp; opt.textContent = comp; compSel.appendChild(opt);
-          });
-          compDiv.style.display = 'block';
-        } else { compDiv.style.display = 'none'; }
-      }
-
-      const companySelect = document.getElementById('signupCompany');
-      const projectSelect = document.getElementById('signupProject');
-      const companyCodeInput = document.getElementById('signupCompanyCode');
-      const companyMsg = document.getElementById('signupCompanyMsg');
-      const companyFields = document.getElementById('companyProjectFields');
-
-      function populateCompaniesAndProjects() {
-        const map = getCompaniesMap();
-        companySelect.innerHTML = '';
-        Object.keys(map).forEach(comp => {
-          const opt = document.createElement('option');
-          opt.value = comp; opt.textContent = comp; companySelect.appendChild(opt);
-        });
-        updateProjects();
-      }
-      function updateProjects() {
-        const map = getCompaniesMap();
-        const selectedComp = companySelect.value;
-        const projs = map[selectedComp] || [];
-        projectSelect.innerHTML = '';
-        projs.forEach(p => {
-          const opt = document.createElement('option');
-          opt.value = p.id; opt.textContent = p.name; projectSelect.appendChild(opt);
-        });
-      }
-      companySelect.addEventListener('change', updateProjects);
-      populateCompaniesAndProjects();
-
-      function validateCompanyCode() {
-        const code = companyCodeInput.value.trim();
-        companyFields.style.display = 'none';
-        companyMsg.textContent = '';
-        if (!code) return;
-        const map = getCompaniesMap();
-        if (map.hasOwnProperty(code)) {
-          companySelect.innerHTML = '';
-          const opt = document.createElement('option');
-          opt.value = code; opt.textContent = code; companySelect.appendChild(opt);
-          companyFields.style.display = 'block';
-          updateProjects();
-        } else {
-          companyMsg.textContent = 'کد شرکت پیدا نشد. لطفاً نام تجاری صحیح را وارد کنید.';
-        }
-      }
-      companyCodeInput.addEventListener('blur', validateCompanyCode);
-
-      document.getElementById('toSignup').addEventListener('click', (ev) => { ev.preventDefault(); showSignup(); });
-      document.getElementById('toLogin').addEventListener('click', (ev) => { ev.preventDefault(); showLogin(); });
-
-      document.getElementById('loginBtn').addEventListener('click', () => {
-        const nid = document.getElementById('loginNationalId').value.trim();
-        const pwd = document.getElementById('loginPassword').value;
-        if (!nid || !pwd) { alert('لطفاً کد ملی و رمز عبور را وارد کنید.'); return; }
-        const usersByProject = getUsersByProject();
-        let foundUser = null, foundProjectId = null;
-        outer: for (const pid in usersByProject) {
-          const arr = usersByProject[pid] || [];
-          for (const u of arr) {
-            if (String(u.nationalId).trim() === nid && String(u.password) === String(pwd)) { foundUser = u; foundProjectId = pid; break outer; }
-          }
-        }
-        if (!foundUser) { alert('کد ملی یا رمز عبور نادرست است.'); return; }
-        loggedInUser = foundUser;
-        if (foundUser.role === 'admin') { showPanelChoice(); }
-        else { setLoggedInSettings(foundUser, foundProjectId); showIframeFor('INDEX8%20-%20Copy13.html'); }
-      });
-
-      document.getElementById('signupBtn').addEventListener('click', () => {
-        if (companyFields.style.display === 'none') { alert('لطفاً ابتدا نام تجاری شرکت معتبر را وارد کنید.'); return; }
-        const pid = document.getElementById('signupProject').value;
-        const company = document.getElementById('signupCompany').value;
-        const role = document.getElementById('signupRole').value;
-        const firstName = document.getElementById('signupFirstName').value.trim();
-        const lastName = document.getElementById('signupLastName').value.trim();
-        const nid = document.getElementById('signupNationalId').value.trim();
-        const pwd1 = document.getElementById('signupPassword').value;
-        const pwd2 = document.getElementById('signupConfirm').value;
-        const accept = document.getElementById('signupAccept').checked;
-
-        if (!firstName || !lastName || !nid || !pwd1) { alert('لطفاً تمامی فیلدهای ضروری را کامل کنید.'); return; }
-        if (pwd1 !== pwd2) { alert('پسورد و تکرار پسورد یکسان نیست.'); return; }
-        const usersByProject = getUsersByProject();
-        const currentList = usersByProject[pid] || [];
-        const duplicate = currentList.find(u => String(u.nationalId).trim() === nid);
-        if (duplicate) { alert('کاربری با این کد ملی قبلاً در این پروژه ثبت شده است.'); return; }
-
-        const newUser = {
-          id: uuid(), projectId: pid, role: role, level: role === 'admin' ? 1 : 2,
-          firstName, lastName, nationalId: nid, personnelNo:'', mobile:'', jobTitle:'', position:'',
-          employmentType:'company', companyName: company || '', address:'', password: pwd1, createdAt: new Date().toISOString()
-        };
-        usersByProject[pid] = [ newUser, ...currentList ]; setUsersByProject(usersByProject);
-
-        const settings = getSettings();
-        settings.staffByProject = settings.staffByProject || {};
-        settings.staffByProject[pid] = settings.staffByProject[pid] || { admin:[], checker:[], drilling:[], planner:[], contractor:[] };
-        const full = (firstName + ' ' + lastName).trim();
-        const roleList = settings.staffByProject[pid][role] || [];
-        if (!roleList.includes(full)) roleList.unshift(full);
-        settings.staffByProject[pid][role] = roleList;
-        settings.passwordsPerPersonByProject = settings.passwordsPerPersonByProject || {};
-        settings.passwordsPerPersonByProject[pid] = settings.passwordsPerPersonByProject[pid] || {};
-        settings.passwordsPerPersonByProject[pid][role] = settings.passwordsPerPersonByProject[pid][role] || {};
-        settings.passwordsPerPersonByProject[pid][role][full] = pwd1;
-        setSettings(settings);
-
-        const msgEl = document.getElementById('signupMsg');
-        msgEl.textContent = 'ثبت‌نام با موفقیت انجام شد؛ اکنون می‌توانید وارد شوید.';
-        document.getElementById('signupFirstName').value = '';
-        document.getElementById('signupLastName').value = '';
-        document.getElementById('signupNationalId').value = '';
-        document.getElementById('signupPassword').value = '';
-        document.getElementById('signupConfirm').value = '';
-        document.getElementById('signupAccept').checked = false;
-      });
-
-      document.getElementById('companyPanelBtn').addEventListener('click', (ev) => {
-        ev.preventDefault();
-        if (!loggedInUser) { showLogin(); return; }
-        let pid = loggedInUser.projectId;
-        if (loggedInUser.level === 0) {
-          const compSel = document.getElementById('panelCompanySelect');
-          const selectedComp = compSel && compSel.value;
-          if (selectedComp) {
-            const map = getCompaniesMap();
-            const projs = map[selectedComp] || [];
-            if (projs.length > 0) { pid = projs[0].id; }
-          }
-        }
-        setLoggedInSettings(loggedInUser, pid);
-        showIframeFor('INDEX8%20-%20Copy13.html');
-      });
-      document.getElementById('adminPanelBtn').addEventListener('click', (ev) => {
-        ev.preventDefault();
-        if (!loggedInUser) { showLogin(); return; }
-        setLoggedInSettings(loggedInUser, loggedInUser.projectId);
-        showIframeFor('INDEX9_SUPERADMIN.html');
-      });
-
-      /* Eye toggles (login & signup) */
-      const loginEye = document.getElementById('loginPwdEye');
-      if (loginEye){
-        loginEye.addEventListener('click', () => {
-          const ip = document.getElementById('loginPassword');
-          const shown = ip.type === 'text';
-          ip.type = shown ? 'password' : 'text';
-          loginEye.innerHTML = shown
-            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>'
-            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.84 21.84 0 0 1-3.3 4.62M14.12 9.88A3 3 0 0 1 12 15a3 3 0 0 1-2.12-.88M1 1l22 22"/></svg>';
-        });
-      }
-      const signupEye = document.getElementById('signupPwdEye');
-      if (signupEye){
-        signupEye.addEventListener('click', () => {
-          const ip = document.getElementById('signupPassword');
-          const shown = ip.type === 'text';
-          ip.type = shown ? 'password' : 'text';
-          signupEye.innerHTML = shown
-            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>'
-            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.84 21.84 0 0 1-3.3 4.62M14.12 9.88A3 3 0 0 1 12 15a3 3 0 0 1-2.12-.88M1 1l22 22"/></svg>';
-        });
-      }
-
-      window.addEventListener('message', (ev) => {
-        if (ev && ev.data) {
-          if (ev.data.type === 'backToPanelChoice') {
-            const iframe = document.getElementById('panelFrame');
-            iframe.style.display = 'none';
-            const choice = document.getElementById('panelChoice');
-            choice.style.display = 'block';
-            if (typeof showPanelChoice === 'function') { showPanelChoice(); }
-          } else if (ev.data.type === 'logoutToLogin') {
-            const iframe = document.getElementById('panelFrame');
-            iframe.style.display = 'none';
-            loggedInUser = null; showLogin();
-          }
-        }
-      });
-    })();
-    </script>
-  </body>
-</html>
+  /* ===== واکنش‌گرا ===== */
+  @media (max-width:560px){
+    #loginForm, #signupForm, #panelChoice{ border-radius:20px !important; padding:18px 16px !important; }
+  }
+</style>
