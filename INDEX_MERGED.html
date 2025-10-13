@@ -1,219 +1,235 @@
 <!doctype html>
-<!--
-  This page acts as a unified entry point for both the company project interface
-  ("INDEX8 - Copy13.html") and the admin/super‑admin management panel
-  ("INDEX9_SUPERADMIN.html").  It consolidates the login and signup flows
-  without altering the internal logic of either underlying application.  Users
-  authenticate here using their national ID (کد ملی) and password and are
-  subsequently redirected to the appropriate panel.  Administrators (both
-  level 0 and level 1) are presented with a choice between the company
-  panel and the admin panel after logging in.  Regular users are sent
-  directly to the company panel.  A simple signup form is also provided to
-  register new users into the shared localStorage datastore used by both
-  existing applications.  This file intentionally uses plain JavaScript
-  instead of React to minimise coupling and to avoid modifying the original
-  files.  All persistent data is stored under the same keys utilised by
-  the existing apps (swiny.usersByProject.v1, swiny.settings.v1 and
-  swiny.projects.v1) so that newly created accounts and login sessions
-  seamlessly propagate.
--->
 <html lang="fa" dir="rtl">
   <head>
     <meta charset="utf-8" />
     <title>ورود و ثبت‌نام — Swiny</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- ⚠️ هیچ منبع خارجی بارگذاری نمی‌شود تا DNS/CSP مشکل‌ساز نشود -->
     <style>
-      /* Simple, responsive styling for the unified auth page */
-      body {
-        font-family: sans-serif;
-        background:#F8FAFC;
-        color:#111827;
-        margin:0;
-        padding:32px 16px;
+      /* ===================== Theme (Grey + Yellow) ===================== */
+      :root{
+        --bg-1:#F5F6F8; --bg-2:#ECEEF2;           /* پس‌زمینه طوسی ملایم */
+        --card:#FFFFFF;                           /* کارت سفید */
+        --text:#111827; --muted:#6B7280;          /* متن طوسی */
+        --line:#E5E7EB;                           /* خطوط کمرنگ */
+        --brand:#FFD54D; --brand-600:#F4C118;     /* زرد اصلی/هاور */
+        --ring:rgba(255,213,77,.35);              /* حلقه فوکوس */
+        --shadow:0 16px 44px rgba(0,0,0,.12);     /* سایه کارت */
+        --radius:20px;
       }
-      h2 { margin-top:0; font-size:22px; font-weight:700; }
-      .form {
-        max-width:420px;
-        margin:24px auto;
-        background:#fff;
-        border:1px solid #E5E7EB;
-        border-radius:14px;
-        padding:20px;
-        box-shadow:0 8px 16px rgba(0,0,0,0.05);
+
+      *{box-sizing:border-box}
+      html,body{height:100%}
+      body{
+        margin:0; color:var(--text);
+        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,Arial,sans-serif;
+        background:
+          radial-gradient(1200px 900px at 105% -10%, rgba(255,213,77,.22) 0%, transparent 45%),
+          linear-gradient(180deg,var(--bg-1) 0%, var(--bg-2) 100%);
+        padding:24px 12px;
       }
-      label {
-        display:block;
-        margin-top:10px;
-        font-size:14px;
-        color:#374151;
+
+      /* ===================== Shell & Cards ===================== */
+      .shell{max-width:980px;margin:0 auto}
+      .stack{display:grid; gap:22px}
+      .form, .panel{
+        background:var(--card);
+        border:1px solid var(--line);
+        border-radius:24px;
+        padding:22px 20px;
+        box-shadow:var(--shadow);
       }
-      input, select {
+
+      h2{margin:0 0 14px; font-size:22px; font-weight:800}
+      p.sub{margin:2px 0 16px; color:var(--muted); font-size:13px}
+
+      /* ===================== Inputs ===================== */
+      label{display:block; margin-top:10px; font-size:13px; color:#374151}
+      input, select{
+        width:100%; margin-top:6px; padding:12px 14px;
+        border:1px solid #D1D5DB; border-radius:14px; background:#fff; color:var(--text);
+        outline:none; transition:border-color .15s, box-shadow .15s;
+      }
+      input:focus, select:focus{border-color:#FFDF77; box-shadow:0 0 0 4px var(--ring)}
+
+      /* Password eye inside field */
+      .field{position:relative}
+      .field .eye{
+        position:absolute; left:10px; top:50%; transform:translateY(-50%);
+        width:30px; height:30px; display:grid; place-items:center; cursor:pointer;
+        background:#fff7d1; border:1px solid #f4e28f; border-radius:50%;
+      }
+      .field .eye svg{width:18px; height:18px; color:#7C5E00}
+      /* leave space for the eye */
+      .field.eye-left input{padding-left:50px}
+
+      /* ===================== Actions ===================== */
+      button, .btn-link{
+        appearance:none; border:none; cursor:pointer;
+        border-radius:16px; padding:12px 16px; font-weight:800;
+        transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;
+      }
+      .btn{
         width:100%;
-        padding:8px 10px;
-        margin-top:4px;
-        border:1px solid #D1D5DB;
-        border-radius:8px;
-        font-size:14px;
-        background:#fff;
-        color:#111827;
+        background:linear-gradient(180deg,var(--brand) 0%, var(--brand-600) 100%);
+        color:#3a2c00; box-shadow:0 12px 26px rgba(255,213,77,.45);
       }
-      input[type="checkbox"] {
-        width:auto;
-        margin-right:6px;
-        vertical-align:middle;
+      .btn:hover{filter:saturate(1.04); transform:translateY(-2px); box-shadow:0 16px 34px rgba(255,213,77,.58)}
+      .btn:disabled{opacity:.6; cursor:not-allowed}
+
+      .muted-row{
+        display:flex; align-items:center; justify-content:space-between;
+        margin-top:10px; font-size:12px; color:#64748b;
       }
-      button {
-        width:100%;
-        margin-top:18px;
-        padding:10px;
-        font-size:15px;
-        border:none;
-        border-radius:8px;
-        cursor:pointer;
-        background:#2563EB;
-        color:#fff;
+      .muted-row a{color:#7C5E00; text-decoration:none}
+      .muted-row a:hover{text-decoration:underline}
+
+      /* panel choice buttons */
+      .panel-buttons{display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end}
+      .panel-buttons a, .panel-buttons button{
+        text-decoration:none; text-align:center; line-height:1; padding:12px 14px; border-radius:12px;
+        border:1px solid var(--line); background:#fff; color:#111827;
+        box-shadow:0 8px 20px rgba(0,0,0,.06);
       }
-      button:disabled {
-        opacity:0.6;
-        cursor:not-allowed;
-      }
-      .secondary {
-        background:#6B7280;
-      }
-      .link {
-        display:inline-block;
-        margin-top:12px;
-        color:#2563EB;
-        cursor:pointer;
-        font-size:14px;
-      }
-      .msg {
-        margin-top:12px;
-        font-size:13px;
-        color:#10B981;
-      }
-      .panel-buttons {
-        display:flex;
-        gap:12px;
-        margin-top:20px;
-      }
-      .panel-buttons button {
-        flex:1;
-        border-radius:8px;
-        padding:12px;
-        font-size:16px;
+      #companyPanelBtn{background:var(--brand); border-color:#f8e69b}
+      #adminPanelBtn{background:#475569; color:#fff; border-color:#475569}
+
+      /* messages */
+      .msg{margin-top:10px; font-size:13px; color:#059669}
+
+      /* iframe */
+      #panelFrame{display:none; width:100%; min-height:88vh; border:none; border-radius:22px; box-shadow:var(--shadow)}
+
+      /* narrow */
+      @media (max-width:560px){
+        .form, .panel{border-radius:20px; padding:18px 16px}
+        h2{font-size:20px}
       }
     </style>
   </head>
   <body>
-    <!-- Login form -->
-    <div id="loginForm" class="form" style="display:block;">
-      <h2>ورود به سیستم</h2>
-      <label for="loginNationalId">کد ملی</label>
-      <input type="text" id="loginNationalId" placeholder="مثلاً 0077541308" />
-      <label for="loginPassword">رمز عبور</label>
-      <input type="password" id="loginPassword" placeholder="مثلاً admin" />
-      <button id="loginBtn">ورود</button>
-      <div class="link" id="toSignup">ثبت‌نام</div>
-    </div>
+    <div class="shell">
+      <div class="stack">
+        <!-- ===== Login form ===== -->
+        <div id="loginForm" class="form" style="display:block;">
+          <h2>ورود به سیستم</h2>
+          <p class="sub">برای ورود، کد ملی و رمز عبور را وارد کنید</p>
 
-    <!-- Signup form -->
-    <div id="signupForm" class="form" style="display:none;">
-      <h2>ثبت‌نام کاربر جدید</h2>
-      <!-- Company code / trade name input -->
-      <label for="signupCompanyCode">نام تجاری شرکت</label>
-      <input type="text" id="signupCompanyCode" placeholder="نام تجاری شرکت" />
-      <div id="signupCompanyMsg" class="msg"></div>
-      <!-- Container for company and project selects.  Hidden until a valid company code is entered -->
-      <div id="companyProjectFields" style="display:none;">
-        <label for="signupCompany">شرکت</label>
-        <!-- Disabled to prevent switching companies once code is validated -->
-        <select id="signupCompany" disabled></select>
-        <label for="signupProject">پروژه</label>
-        <select id="signupProject"></select>
-      </div>
-      <label for="signupRole">نقش</label>
-      <select id="signupRole">
-        <option value="drilling">کارشناس حفاری</option>
-        <option value="contractor">پیمانکار</option>
-        <option value="checker">بازرس</option>
-        <option value="planner">برنامه‌ریز</option>
-      </select>
-      <label for="signupFirstName">نام</label>
-      <input type="text" id="signupFirstName" />
-      <label for="signupLastName">نام خانوادگی</label>
-      <input type="text" id="signupLastName" />
-      <label for="signupNationalId">کد ملی</label>
-      <input type="text" id="signupNationalId" />
-      <label for="signupPassword">پسورد</label>
-      <input type="password" id="signupPassword" />
-      <label for="signupConfirm">تکرار پسورد</label>
-      <input type="password" id="signupConfirm" />
-      <label><input type="checkbox" id="signupAccept" /> قوانین را می‌پذیرم</label>
-      <button id="signupBtn">تأیید ثبت‌نام</button>
-      <div class="link" id="toLogin">بازگشت به ورود</div>
-      <div id="signupMsg" class="msg"></div>
-    </div>
+          <label for="loginNationalId">کد ملی</label>
+          <input type="text" id="loginNationalId" placeholder="مثلاً 0077541308" />
 
-      <!-- Panel selection for admins -->
-      <div id="panelChoice" class="form" style="display:none;">
-        <h2>انتخاب پنل</h2>
-        <p style="font-size:14px; margin-bottom:16px;">کدام پنل را می‌خواهید باز کنید؟</p>
-        <!--
-          بخش انتخاب پنل.  برای ادمین سطح صفر، یک لیست کشویی انتخاب شرکت در کنار
-          دکمه‌ی «پنل شرکت» نمایش داده می‌شود تا بتواند قبل از ورود به پنل
-          شرکت، شرکت مورد نظرش را انتخاب کند.  این عنصر به داخل ظرف
-          panel‑buttons منتقل شده تا به شکل افقی در کنار دکمه‌ها قرار گیرد.
-        -->
-        <div class="panel-buttons" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
-          <!-- Dropdown for selecting company (visible only for super-admins) -->
-          <div id="companySelectForPanel" style="display:none; margin-inline-end:12px;">
-            <label for="panelCompanySelect" style="font-size:14px; margin-bottom:4px; display:block;">انتخاب شرکت</label>
-            <select id="panelCompanySelect" style="width:200px; padding:8px; border:1px solid #D1D5DB; border-radius:6px;"></select>
+          <label for="loginPassword">رمز عبور</label>
+          <div class="field eye-left">
+            <input type="password" id="loginPassword" placeholder="مثلاً admin" />
+            <button type="button" class="eye" id="loginPwdEye" aria-label="نمایش/مخفی کردن رمز">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
           </div>
-          <!--
-            Use anchor elements instead of buttons for navigation.  Browsers
-            impose strict security rules on programmatic navigation between
-            local files (file://).  Anchors clicked by the user are allowed
-            to open other local resources, whereas assigning window.location
-            via script may be blocked.  These anchors will have their href
-            attributes set dynamically when the panel choice is shown.
-          -->
-          <a id="companyPanelBtn" class="secondary" style="text-decoration:none; text-align:center; line-height:1; padding:12px; border-radius:8px;" href="#">پنل شرکت</a>
-          <a id="adminPanelBtn" style="text-decoration:none; text-align:center; line-height:1; padding:12px; border-radius:8px; background:#2563EB; color:#fff;" href="#">پنل ادمین</a>
+
+          <div class="muted-row">
+            <label style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="rememberMe"> مرا به خاطر بسپار
+            </label>
+            <span style="color:#94a3b8">فراموشی رمز؟</span>
+          </div>
+
+          <button id="loginBtn" class="btn">ورود</button>
+          <div class="muted-row" style="justify-content:center; gap:6px">
+            <span>حسابی ندارید؟</span>
+            <a class="btn-link" id="toSignup" href="javascript:void(0)" style="color:#7C5E00;font-weight:700">ثبت‌نام</a>
+          </div>
         </div>
+
+        <!-- ===== Signup form ===== -->
+        <div id="signupForm" class="form" style="display:none;">
+          <h2>ثبت‌نام کاربر جدید</h2>
+          <p class="sub">ابتدا نام تجاری شرکت/کد پروژه را وارد کنید</p>
+
+          <label for="signupCompanyCode">نام تجاری شرکت</label>
+          <input type="text" id="signupCompanyCode" placeholder="SampleCo" />
+          <div id="signupCompanyMsg" class="msg"></div>
+
+          <!-- شرکت/پروژه پس از اعتبارسنجی کد -->
+          <div id="companyProjectFields" style="display:none;">
+            <label for="signupCompany">شرکت</label>
+            <select id="signupCompany" disabled></select>
+
+            <label for="signupProject">پروژه</label>
+            <select id="signupProject"></select>
+          </div>
+
+          <label for="signupRole">نقش</label>
+          <select id="signupRole">
+            <option value="drilling">کارشناس حفاری</option>
+            <option value="contractor">پیمانکار</option>
+            <option value="checker">بازرس</option>
+            <option value="planner">برنامه‌ریز</option>
+          </select>
+
+          <label for="signupFirstName">نام</label>
+          <input type="text" id="signupFirstName" />
+
+          <label for="signupLastName">نام خانوادگی</label>
+          <input type="text" id="signupLastName" />
+
+          <label for="signupNationalId">کد ملی</label>
+          <input type="text" id="signupNationalId" />
+
+          <label for="signupPassword">رمز عبور</label>
+          <div class="field eye-left">
+            <input id="signupPassword" type="password" placeholder="رمز عبور"/>
+            <button type="button" class="eye" id="signupPwdEye" aria-label="نمایش/مخفی کردن رمز">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+
+          <label for="signupConfirm">تکرار پسورد</label>
+          <input type="password" id="signupConfirm" />
+
+          <label style="display:flex;align-items:center;gap:8px;margin-top:12px">
+            <input type="checkbox" id="signupAccept" /> قوانین را می‌پذیرم
+          </label>
+
+          <button id="signupBtn" class="btn">تأیید ثبت‌نام</button>
+          <div class="muted-row" style="justify-content:center; gap:6px">
+            <a id="toLogin" href="javascript:void(0)" style="color:#7C5E00;font-weight:700">بازگشت به ورود</a>
+          </div>
+          <div id="signupMsg" class="msg"></div>
+        </div>
+
+        <!-- ===== Panel choice ===== -->
+        <div id="panelChoice" class="panel" style="display:none;">
+          <h2>انتخاب پنل</h2>
+          <p class="sub">کدام پنل را می‌خواهید باز کنید؟</p>
+
+          <div class="panel-buttons">
+            <div id="companySelectForPanel" style="display:none;">
+              <label for="panelCompanySelect" style="font-size:13px; margin-bottom:6px; display:block;">انتخاب شرکت</label>
+              <select id="panelCompanySelect" style="width:220px; padding:10px 12px; border-radius:12px; border:1px solid #D1D5DB;"></select>
+            </div>
+
+            <a id="companyPanelBtn" class="secondary" href="#">پنل شرکت</a>
+            <a id="adminPanelBtn" href="#">پنل ادمین</a>
+          </div>
+        </div>
+
+        <!-- ===== Iframe host ===== -->
+        <iframe id="panelFrame"></iframe>
       </div>
+    </div>
 
-      <!-- Container for the selected panel.  Once a user chooses which panel
-           to open (company or admin) or a non-admin logs in, we load the
-           corresponding original HTML file into this iframe.  Using an
-           iframe circumvents browser restrictions on navigating between
-           local files: the original pages remain unmodified and are simply
-           embedded within this unified interface. -->
-      <iframe id="panelFrame" style="display:none; width:100%; min-height:90vh; border:none;"></iframe>
-
+    <!-- ============== ORIGINAL SCRIPT (logic untouched) ============== -->
     <script>
     (() => {
-      /*
-        Constants for localStorage keys.  These match the keys used in the
-        existing applications (INDEX8 - Copy13.html and INDEX9_SUPERADMIN.html),
-        ensuring compatibility for users, projects and settings.  The SEED
-        project ID is only used as a fallback when no project list exists in
-        storage.
-      */
       const LS_USERS = "swiny.usersByProject.v1";
       const LS_SETTINGS = "swiny.settings.v1";
       const LS_PROJECTS = "swiny.projects.v1";
-      /*
-        The original drilling interface (INDEX8 - Copy13.html) stores its
-        persistent state under a different namespace (prefixed with
-        "swiny.drilling.").  In order for data written by this unified
-        portal to be visible to both the admin/super‑admin panel and the
-        drilling panel, we mirror all reads and writes across both the
-        generic and drilling keys.  The ALT_KEYS map defines the drilling
-        counterparts of each primary key.  Any time we read from or write
-        to localStorage we probe/update both entries.
-      */
       const ALT_KEYS = {
         users: "swiny.drilling.users.v1",
         settings: "swiny.drilling.settings.v5",
@@ -221,17 +237,6 @@
       };
       const SEED_PROJECT_ID = "P-SEED-0";
 
-      /**
-       * Generic helper to read a value from a list of storage keys.  It
-       * iterates through the provided keys in order and returns the first
-       * successfully parsed JSON value.  If none of the keys exist or
-       * parsing fails, the supplied fallback is returned.  This helper
-       * centralises the dual‑namespace handling of localStorage reads.
-       *
-       * @param {string[]} keys – Ordered list of keys to check
-       * @param {*} fallback – Value to return if nothing is stored
-       * @returns {*} Parsed value or fallback
-       */
       function getFromStorage(keys, fallback) {
         for (const k of keys) {
           const raw = localStorage.getItem(k);
@@ -239,51 +244,20 @@
             try {
               const val = JSON.parse(raw);
               if (val !== undefined && val !== null) return val;
-            } catch (e) {
-              // skip invalid JSON
-            }
+            } catch (e) {}
           }
         }
         return fallback;
       }
-
-      /**
-       * Generic helper to persist a value into multiple localStorage keys.  The
-       * provided value is serialised once and written to each key in order.
-       * This keeps both the primary and drilling namespaces in sync.
-       *
-       * @param {string[]} keys – List of keys to update
-       * @param {*} value – Data to serialise and store
-       */
       function setInStorage(keys, value) {
         const serialised = JSON.stringify(value);
-        keys.forEach(k => {
-          try { localStorage.setItem(k, serialised); } catch (e) {
-            /* ignore quota or other storage errors */
-          }
-        });
+        keys.forEach(k => { try { localStorage.setItem(k, serialised); } catch (e) {} });
       }
-
-      /**
-       * Retrieve the list of projects from localStorage.  If none are found,
-       * return a default array containing a single sample project.  The
-       * project objects have the shape { id: string, name: string, company?: string }.
-       */
       function getProjects() {
         const stored = getFromStorage([LS_PROJECTS, ALT_KEYS.projects], null);
         if (Array.isArray(stored)) return stored;
-        // Default fallback project
         return [{ id: SEED_PROJECT_ID, name: "پروژه نمونه", company: "SampleCo" }];
       }
-
-      /**
-       * Construct a mapping of company names to their associated projects.
-       * Each project may specify a `company` field; if absent, its `name`
-       * is used as the company name.  This helper normalises the list of
-       * projects into a simple { [companyName]: Array<Project> } object.
-       *
-       * @returns {Object} A map from company name to an array of projects
-       */
       function getCompaniesMap() {
         const list = getProjects();
         const map = {};
@@ -294,208 +268,96 @@
         });
         return map;
       }
-
-      /**
-       * Retrieve the users mapped by project ID.  The structure is
-       * { [projectId]: Array<User> }.  If no data exists, return an empty
-       * object.  Parsing errors result in an empty object as well.
-       */
       function getUsersByProject() {
         const obj = getFromStorage([LS_USERS, ALT_KEYS.users], {});
         return obj && typeof obj === 'object' ? obj : {};
       }
-
-      /**
-       * Persist the given usersByProject object back into localStorage.
-       */
-      function setUsersByProject(obj) {
-        setInStorage([LS_USERS, ALT_KEYS.users], obj);
-      }
-
-      /**
-       * Retrieve current settings from localStorage.  The settings object
-       * contains global session data (projectId, role, profilesByProject,
-       * staffByProject, passwordsPerPersonByProject, etc.).  If absent,
-       * return an empty object.
-       */
+      function setUsersByProject(obj) { setInStorage([LS_USERS, ALT_KEYS.users], obj); }
       function getSettings() {
         const obj = getFromStorage([LS_SETTINGS, ALT_KEYS.settings], {});
         return obj && typeof obj === 'object' ? obj : {};
       }
-
-      /**
-       * Persist updated settings back into localStorage.
-       */
-      function setSettings(obj) {
-        setInStorage([LS_SETTINGS, ALT_KEYS.settings], obj);
-      }
-
-      /**
-       * Simple UUID generator used for new user IDs.  Uses crypto.randomUUID
-       * when available, otherwise falls back to a pseudo‑random string.
-       */
+      function setSettings(obj) { setInStorage([LS_SETTINGS, ALT_KEYS.settings], obj); }
       function uuid() {
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-          return crypto.randomUUID();
-        }
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
         return 'id-' + Math.random().toString(36).slice(2) + Date.now();
       }
-
-      /**
-       * Update settings with the logged in user.  Ensures the
-       * projectId, role and the profilesByProject entry for the current
-       * project/role are recorded.  This mirrors the logic used in the
-       * original applications’ login flows.
-       *
-       * @param {Object} user – The user record that just logged in
-       * @param {string} projectId – The project associated with the user
-       */
       function setLoggedInSettings(user, projectId) {
-        /*
-          Apply the logged‑in user’s details to the global settings object.  In
-          addition to recording the project, role and full name inside
-          profilesByProject (used by both apps to resolve the current user),
-          this helper mirrors the user into the staffByProject and
-          passwordsPerPersonByProject structures.  Doing so increases
-          compatibility with the existing applications, some of which rely on
-          these lists for navigation and access control.
-
-          @param user      The user record returned from authentication
-          @param projectId Optional override for the project ID
-        */
         const settings = getSettings();
         const pid = projectId || user.projectId;
-        // Persist basic session info
         settings.projectId = pid;
         settings.role = user.role;
-        // Ensure profilesByProject exists and set the full name for the role
         settings.profilesByProject = settings.profilesByProject || {};
         settings.profilesByProject[pid] = settings.profilesByProject[pid] || {};
         const full = ((user.firstName || '') + ' ' + (user.lastName || '')).trim();
         settings.profilesByProject[pid][user.role] = full;
-        // Mirror the user into staffByProject
         settings.staffByProject = settings.staffByProject || {};
         settings.staffByProject[pid] = settings.staffByProject[pid] || {
           admin: [], checker: [], drilling: [], planner: [], contractor: []
         };
         const list = settings.staffByProject[pid][user.role] || [];
-        if (full && !list.includes(full)) {
-          list.unshift(full);
-        }
+        if (full && !list.includes(full)) { list.unshift(full); }
         settings.staffByProject[pid][user.role] = list;
-        // Mirror the password into passwordsPerPersonByProject
         settings.passwordsPerPersonByProject = settings.passwordsPerPersonByProject || {};
         settings.passwordsPerPersonByProject[pid] = settings.passwordsPerPersonByProject[pid] || {};
         settings.passwordsPerPersonByProject[pid][user.role] = settings.passwordsPerPersonByProject[pid][user.role] || {};
         settings.passwordsPerPersonByProject[pid][user.role][full] = user.password;
-        // Persist
         setSettings(settings);
       }
-
-      /**
-       * Display one of the original application panels inside the iframe.  Given
-       * a target relative file name, this helper computes the absolute path
-       * based on the current page and assigns it to the iframe’s src.  It
-       * hides the login/signup/panel choice forms and reveals the iframe.
-       *
-       * @param {string} fileName Encoded filename of the panel to load
-       */
       function showIframeFor(fileName) {
         const frame = document.getElementById('panelFrame');
-        // Compute base path of the current HTML file
         const basePath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
         frame.src = basePath + fileName;
-        // Hide all forms and choice screen
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('signupForm').style.display = 'none';
         document.getElementById('panelChoice').style.display = 'none';
-        // Show the iframe
         frame.style.display = 'block';
       }
-
-      // Cache a logged in user during admin panel selection.  Cleared once
-      // the redirect happens.
       let loggedInUser = null;
-
-      /**
-       * Show only the login form and hide other panes.
-       */
       function showLogin() {
         document.getElementById('loginForm').style.display = 'block';
         document.getElementById('signupForm').style.display = 'none';
         document.getElementById('panelChoice').style.display = 'none';
       }
-
-      /**
-       * Show the signup form and hide the other panes.
-       */
       function showSignup() {
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('signupForm').style.display = 'block';
         document.getElementById('panelChoice').style.display = 'none';
-        // Clear any previous success message
         document.getElementById('signupMsg').textContent = '';
       }
-
-      /**
-       * Show the admin/company panel choice screen.  Only used when an
-       * authenticated admin logs in.
-       */
       function showPanelChoice() {
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('signupForm').style.display = 'none';
         const panelChoiceEl = document.getElementById('panelChoice');
         panelChoiceEl.style.display = 'block';
-        // For super admins (level 0), show a company dropdown to pick which company to open.
         const compDiv = document.getElementById('companySelectForPanel');
         const compSel = document.getElementById('panelCompanySelect');
         if (loggedInUser && loggedInUser.level === 0) {
-          // Populate the dropdown with all companies
           const map = getCompaniesMap();
           compSel.innerHTML = '';
           Object.keys(map).forEach(comp => {
             const opt = document.createElement('option');
-            opt.value = comp;
-            opt.textContent = comp;
-            compSel.appendChild(opt);
+            opt.value = comp; opt.textContent = comp; compSel.appendChild(opt);
           });
           compDiv.style.display = 'block';
-        } else {
-          // Hide the dropdown for non-super admins
-          compDiv.style.display = 'none';
-        }
+        } else { compDiv.style.display = 'none'; }
       }
 
-      // Populate the company and project dropdowns in the signup form from stored data
       const companySelect = document.getElementById('signupCompany');
       const projectSelect = document.getElementById('signupProject');
       const companyCodeInput = document.getElementById('signupCompanyCode');
       const companyMsg = document.getElementById('signupCompanyMsg');
       const companyFields = document.getElementById('companyProjectFields');
-      /**
-       * Fill the company select with all available company names and then
-       * populate the corresponding projects for the initially selected company.
-       */
+
       function populateCompaniesAndProjects() {
         const map = getCompaniesMap();
-        // Clear any existing options
         companySelect.innerHTML = '';
-        // Populate company options
         Object.keys(map).forEach(comp => {
           const opt = document.createElement('option');
-          opt.value = comp;
-          opt.textContent = comp;
-          companySelect.appendChild(opt);
+          opt.value = comp; opt.textContent = comp; companySelect.appendChild(opt);
         });
-        // Populate projects for the first (or current) company
         updateProjects();
       }
-      /**
-       * Refresh the project dropdown based on the selected company.  When the
-       * company selection changes, this function looks up the list of
-       * projects belonging to that company and repopulates the project
-       * select element accordingly.
-       */
       function updateProjects() {
         const map = getCompaniesMap();
         const selectedComp = companySelect.value;
@@ -503,119 +365,53 @@
         projectSelect.innerHTML = '';
         projs.forEach(p => {
           const opt = document.createElement('option');
-          opt.value = p.id;
-          opt.textContent = p.name;
-          projectSelect.appendChild(opt);
+          opt.value = p.id; opt.textContent = p.name; projectSelect.appendChild(opt);
         });
       }
-      // Listen for changes on company select
       companySelect.addEventListener('change', updateProjects);
-      // Initialise the dropdowns
       populateCompaniesAndProjects();
 
-      /**
-       * Validate the company code entered by the user.  When a valid company
-       * (trade name) is provided, this function reveals the company/project
-       * selectors, populates them with only the matching company and its
-       * projects, and clears any previous error messages.  If the code is
-       * invalid or empty, the selectors are hidden and an error message is
-       * displayed.
-       */
       function validateCompanyCode() {
         const code = companyCodeInput.value.trim();
-        // Hide fields and clear previous state
         companyFields.style.display = 'none';
         companyMsg.textContent = '';
-        if (!code) {
-          return;
-        }
+        if (!code) return;
         const map = getCompaniesMap();
         if (map.hasOwnProperty(code)) {
-          // Populate only the selected company
           companySelect.innerHTML = '';
           const opt = document.createElement('option');
-          opt.value = code;
-          opt.textContent = code;
-          companySelect.appendChild(opt);
-          // Show fields
+          opt.value = code; opt.textContent = code; companySelect.appendChild(opt);
           companyFields.style.display = 'block';
-          // Update projects list for this company
           updateProjects();
         } else {
           companyMsg.textContent = 'کد شرکت پیدا نشد. لطفاً نام تجاری صحیح را وارد کنید.';
         }
       }
-      // Validate when the user leaves the company code field
       companyCodeInput.addEventListener('blur', validateCompanyCode);
 
-      // Event handlers for switching between login and signup forms
-      document.getElementById('toSignup').addEventListener('click', (ev) => {
-        ev.preventDefault();
-        showSignup();
-      });
-      document.getElementById('toLogin').addEventListener('click', (ev) => {
-        ev.preventDefault();
-        showLogin();
-      });
+      document.getElementById('toSignup').addEventListener('click', (ev) => { ev.preventDefault(); showSignup(); });
+      document.getElementById('toLogin').addEventListener('click', (ev) => { ev.preventDefault(); showLogin(); });
 
-      /**
-       * Handle login button click.  Search for a matching user across all
-       * projects using national ID and password.  If found and the user is
-       * an admin, present the panel choice.  Otherwise, update the session
-       * settings and redirect directly to the company panel.  Alerts are
-       * displayed for invalid credentials.
-       */
       document.getElementById('loginBtn').addEventListener('click', () => {
         const nid = document.getElementById('loginNationalId').value.trim();
         const pwd = document.getElementById('loginPassword').value;
-        if (!nid || !pwd) {
-          alert('لطفاً کد ملی و رمز عبور را وارد کنید.');
-          return;
-        }
+        if (!nid || !pwd) { alert('لطفاً کد ملی و رمز عبور را وارد کنید.'); return; }
         const usersByProject = getUsersByProject();
-        let foundUser = null;
-        let foundProjectId = null;
-        // Iterate through each project list
+        let foundUser = null, foundProjectId = null;
         outer: for (const pid in usersByProject) {
           const arr = usersByProject[pid] || [];
           for (const u of arr) {
-            if (String(u.nationalId).trim() === nid && String(u.password) === String(pwd)) {
-              foundUser = u;
-              foundProjectId = pid;
-              break outer;
-            }
+            if (String(u.nationalId).trim() === nid && String(u.password) === String(pwd)) { foundUser = u; foundProjectId = pid; break outer; }
           }
         }
-        if (!foundUser) {
-          alert('کد ملی یا رمز عبور نادرست است.');
-          return;
-        }
-        // Save in module scope for later redirect selection
+        if (!foundUser) { alert('کد ملی یا رمز عبور نادرست است.'); return; }
         loggedInUser = foundUser;
-        // Admins (levels 0 or 1) get to choose which panel to enter
-        if (foundUser.role === 'admin') {
-          // For admins, present panel selection
-          showPanelChoice();
-        } else {
-          // Non-admins go straight to company panel inside an iframe
-          setLoggedInSettings(foundUser, foundProjectId);
-          showIframeFor('INDEX8%20-%20Copy13.html');
-        }
+        if (foundUser.role === 'admin') { showPanelChoice(); }
+        else { setLoggedInSettings(foundUser, foundProjectId); showIframeFor('INDEX8%20-%20Copy13.html'); }
       });
 
-      /**
-       * Handle signup button click.  Validates the form, ensures the
-       * national ID is unique within the selected project, constructs a new
-       * user object and updates both the users store and the settings store
-       * accordingly.  On success, displays a message but does not
-       * automatically redirect.
-       */
       document.getElementById('signupBtn').addEventListener('click', () => {
-        // Ensure a valid company code has been entered and the selects are visible
-        if (companyFields.style.display === 'none') {
-          alert('لطفاً ابتدا نام تجاری شرکت معتبر را وارد کنید.');
-          return;
-        }
+        if (companyFields.style.display === 'none') { alert('لطفاً ابتدا نام تجاری شرکت معتبر را وارد کنید.'); return; }
         const pid = document.getElementById('signupProject').value;
         const company = document.getElementById('signupCompany').value;
         const role = document.getElementById('signupRole').value;
@@ -625,70 +421,34 @@
         const pwd1 = document.getElementById('signupPassword').value;
         const pwd2 = document.getElementById('signupConfirm').value;
         const accept = document.getElementById('signupAccept').checked;
-        if (!firstName || !lastName || !nid || !pwd1) {
-          alert('لطفاً تمامی فیلدهای ضروری را کامل کنید.');
-          return;
-        }
-        if (pwd1 !== pwd2) {
-          alert('پسورد و تکرار پسورد یکسان نیست.');
-          return;
-        }
-        // قبول قوانین در این نسخه اختیاری است تا ثبت‌نام ساده‌تر شود
-        // اگر نیاز دارید اجباری باشد، شرط زیر را فعال کنید.
-        // if (!accept) {
-        //   alert('برای ثبت‌نام باید قوانین را بپذیرید.');
-        //   return;
-        // }
+
+        if (!firstName || !lastName || !nid || !pwd1) { alert('لطفاً تمامی فیلدهای ضروری را کامل کنید.'); return; }
+        if (pwd1 !== pwd2) { alert('پسورد و تکرار پسورد یکسان نیست.'); return; }
         const usersByProject = getUsersByProject();
         const currentList = usersByProject[pid] || [];
-        // Check duplicate national ID within the same project
         const duplicate = currentList.find(u => String(u.nationalId).trim() === nid);
-        if (duplicate) {
-          alert('کاربری با این کد ملی قبلاً در این پروژه ثبت شده است.');
-          return;
-        }
-        // Construct new user record (defaults align with original app)
+        if (duplicate) { alert('کاربری با این کد ملی قبلاً در این پروژه ثبت شده است.'); return; }
+
         const newUser = {
-          id: uuid(),
-          projectId: pid,
-          role: role,
-          level: role === 'admin' ? 1 : 2,
-          firstName: firstName,
-          lastName: lastName,
-          nationalId: nid,
-          personnelNo: '',
-          mobile: '',
-          jobTitle: '',
-          position: '',
-          employmentType: 'company',
-          companyName: company || '',
-          address: '',
-          password: pwd1,
-          createdAt: new Date().toISOString()
+          id: uuid(), projectId: pid, role: role, level: role === 'admin' ? 1 : 2,
+          firstName, lastName, nationalId: nid, personnelNo:'', mobile:'', jobTitle:'', position:'',
+          employmentType:'company', companyName: company || '', address:'', password: pwd1, createdAt: new Date().toISOString()
         };
-        // Prepend to project users (most recent first)
-        usersByProject[pid] = [ newUser, ...currentList ];
-        setUsersByProject(usersByProject);
-        // Update settings.staffByProject and passwordsPerPersonByProject so
-        // that the new user appears in staff lists within the company panel
+        usersByProject[pid] = [ newUser, ...currentList ]; setUsersByProject(usersByProject);
+
         const settings = getSettings();
         settings.staffByProject = settings.staffByProject || {};
-        // Ensure a roles object exists for the project
-        settings.staffByProject[pid] = settings.staffByProject[pid] || {
-          admin: [], checker: [], drilling: [], planner: [], contractor: []
-        };
+        settings.staffByProject[pid] = settings.staffByProject[pid] || { admin:[], checker:[], drilling:[], planner:[], contractor:[] };
         const full = (firstName + ' ' + lastName).trim();
-        // Add the full name to the appropriate role list if missing
         const roleList = settings.staffByProject[pid][role] || [];
         if (!roleList.includes(full)) roleList.unshift(full);
         settings.staffByProject[pid][role] = roleList;
-        // Mirror passwords by person for potential future use
         settings.passwordsPerPersonByProject = settings.passwordsPerPersonByProject || {};
         settings.passwordsPerPersonByProject[pid] = settings.passwordsPerPersonByProject[pid] || {};
         settings.passwordsPerPersonByProject[pid][role] = settings.passwordsPerPersonByProject[pid][role] || {};
         settings.passwordsPerPersonByProject[pid][role][full] = pwd1;
         setSettings(settings);
-        // Show success message and clear fields
+
         const msgEl = document.getElementById('signupMsg');
         msgEl.textContent = 'ثبت‌نام با موفقیت انجام شد؛ اکنون می‌توانید وارد شوید.';
         document.getElementById('signupFirstName').value = '';
@@ -699,25 +459,17 @@
         document.getElementById('signupAccept').checked = false;
       });
 
-      // Panel selection links for admins.  Clicking a link loads the requested
-      // panel into the iframe instead of navigating away from the unified page.
       document.getElementById('companyPanelBtn').addEventListener('click', (ev) => {
         ev.preventDefault();
-        if (!loggedInUser) {
-          showLogin();
-          return;
-        }
+        if (!loggedInUser) { showLogin(); return; }
         let pid = loggedInUser.projectId;
-        // If super admin (level 0) and company dropdown is visible, choose the first project of the selected company
         if (loggedInUser.level === 0) {
           const compSel = document.getElementById('panelCompanySelect');
           const selectedComp = compSel && compSel.value;
           if (selectedComp) {
             const map = getCompaniesMap();
             const projs = map[selectedComp] || [];
-            if (projs.length > 0) {
-              pid = projs[0].id;
-            }
+            if (projs.length > 0) { pid = projs[0].id; }
           }
         }
         setLoggedInSettings(loggedInUser, pid);
@@ -725,43 +477,47 @@
       });
       document.getElementById('adminPanelBtn').addEventListener('click', (ev) => {
         ev.preventDefault();
-        if (!loggedInUser) {
-          showLogin();
-          return;
-        }
+        if (!loggedInUser) { showLogin(); return; }
         setLoggedInSettings(loggedInUser, loggedInUser.projectId);
         showIframeFor('INDEX9_SUPERADMIN.html');
       });
 
-      // Listen for messages from embedded iframes.  When a company panel sends a
-      // "backToPanelChoice" message (e.g. via window.parent.postMessage), this
-      // handler hides the iframe and shows the panel selection screen again.
+      /* Eye toggles (login & signup) */
+      const loginEye = document.getElementById('loginPwdEye');
+      if (loginEye){
+        loginEye.addEventListener('click', () => {
+          const ip = document.getElementById('loginPassword');
+          const shown = ip.type === 'text';
+          ip.type = shown ? 'password' : 'text';
+          loginEye.innerHTML = shown
+            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>'
+            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.84 21.84 0 0 1-3.3 4.62M14.12 9.88A3 3 0 0 1 12 15a3 3 0 0 1-2.12-.88M1 1l22 22"/></svg>';
+        });
+      }
+      const signupEye = document.getElementById('signupPwdEye');
+      if (signupEye){
+        signupEye.addEventListener('click', () => {
+          const ip = document.getElementById('signupPassword');
+          const shown = ip.type === 'text';
+          ip.type = shown ? 'password' : 'text';
+          signupEye.innerHTML = shown
+            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>'
+            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.84 21.84 0 0 1-3.3 4.62M14.12 9.88A3 3 0 0 1 12 15a3 3 0 0 1-2.12-.88M1 1l22 22"/></svg>';
+        });
+      }
+
       window.addEventListener('message', (ev) => {
         if (ev && ev.data) {
-          // Handle request to return to panel selection without logging out
           if (ev.data.type === 'backToPanelChoice') {
-            // Hide the iframe and show the panel selection.  We also
-            // re-invoke showPanelChoice() so that the company dropdown
-            // and other stateful elements are refreshed without requiring
-            // the user to log in again.  This preserves the logged-in
-            // user and avoids forcing them to re-enter credentials.
             const iframe = document.getElementById('panelFrame');
             iframe.style.display = 'none';
             const choice = document.getElementById('panelChoice');
             choice.style.display = 'block';
-            if (typeof showPanelChoice === 'function') {
-              showPanelChoice();
-            }
-          }
-          // Handle request to fully log out and return to the login screen
-          else if (ev.data.type === 'logoutToLogin') {
-            // Hide the iframe and reset loggedInUser so that the login
-            // form is shown again.  Call showLogin() to reset the UI.
+            if (typeof showPanelChoice === 'function') { showPanelChoice(); }
+          } else if (ev.data.type === 'logoutToLogin') {
             const iframe = document.getElementById('panelFrame');
             iframe.style.display = 'none';
-            // Reset the local loggedInUser flag so future operations treat user as logged out
-            loggedInUser = null;
-            showLogin();
+            loggedInUser = null; showLogin();
           }
         }
       });
