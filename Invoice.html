@@ -1,125 +1,148 @@
 <!doctype html>
 <html lang="fa" dir="rtl">
 <head>
-    <meta charset="utf-8" />
-    <title>صورت وضعیت پیمانکار</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <style>
-        *{box-sizing:border-box}
-        html,body{height:100%; margin:0}
-        body{background:#f6f7fb; color:#111; font-family: IRANYekan, tahoma, sans-serif}
-        table{border-collapse:collapse;width:100%}
-        th, td{border:1px solid #e5e7eb;padding:8px;text-align:center}
-        thead th{background:#f3f4f6;font-weight:600}
-        .status-table{margin-top:12px}
-        .badge{display:inline-block;background:#e5edff;border:1px solid #c7d2fe;color:#1d4ed8;padding:2px 8px;border-radius:999px;font-size:12px}
-    </style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>صورت وضعیت پیمانکار</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;padding:16px;background:#f6f7fb;color:#111;font-family:tahoma, sans-serif}
+    h1{font-size:18px;margin:0 0 12px}
+    .row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+    label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#667085;min-width:220px}
+    input,select{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
+    table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #e5e7eb;padding:8px;text-align:center}
+    thead th{background:#f3f4f6;font-weight:600}
+    .muted{color:#6B7280}
+    .chips{display:flex;gap:16px;align-items:center;margin-bottom:12px}
+  </style>
 </head>
 <body>
-    <div id="root"></div>
+  <h1>صورت وضعیت پیمانکار</h1>
 
-    <script type="text/babel">
-        const { useState, useMemo } = React;
+  <div class="row">
+    <label>پیمانکار
+      <select id="contractorSelect"><option value="">همه پیمانکاران</option></select>
+    </label>
+    <label>از تاریخ (جلالی)
+      <input id="startJ" placeholder="YYYY-MM-DD"/>
+    </label>
+    <label>تا تاریخ (جلالی)
+      <input id="endJ" placeholder="YYYY-MM-DD"/>
+    </label>
+  </div>
 
-        const toFa = (v) => new Intl.NumberFormat('fa-IR').format(Number(v || 0));
+  <div class="chips">
+    <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:#111">
+      <input type="checkbox" id="checkedOnly"/> نقاط چِک‌مِنی شده
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:#111">
+      <input type="checkbox" id="allPoints"/> همه نقاط (فاقد چک‌من)
+    </label>
+  </div>
 
-        const SVContractorStatus = ({ projContractors, projHoles, projRates, rateMap }) => {
-            const [svContractorId, setSvContractorId] = useState('');
-            const [svJStart, setSvJStart] = useState('');
-            const [svJEnd, setSvJEnd] = useState('');
-            const [svCheckedOnly, setSvCheckedOnly] = useState(false);
-            const [svAllPoints, setSvAllPoints] = useState(false);
+  <div style="overflow-x:auto">
+    <table id="svTable" style="min-width:720px">
+      <thead>
+        <tr>
+          <th>ردیف</th><th>شرح</th><th>واحد</th><th>تعداد چاله</th><th>قیمت واحد</th><th>مبلغ این دوره</th>
+        </tr>
+      </thead>
+      <tbody id="svBody">
+        <tr><td colspan="6" class="muted">— موردی برای نمایش نیست —</td></tr>
+      </tbody>
+    </table>
+  </div>
 
-            const svRows = useMemo(() => {
-                const startISO = svJStart ? jalaliToISO(svJStart) : '';
-                const endISO = svJEnd ? jalaliToISO(svJEnd) : '';
-                let filtered = projHoles.filter(h => true);
-                if (svContractorId) filtered = filtered.filter(h => h.groupType === 'contractor' && h.contractorId === svContractorId);
-                if (startISO) filtered = filtered.filter(h => (h.dateInitial || '') >= startISO);
-                if (endISO) filtered = filtered.filter(h => (h.dateInitial || '') <= endISO);
-                if (svCheckedOnly) filtered = filtered.filter(h => !!(h && (h.depthChecked1 != null || h.jDateChecked || h.dateChecked)));
-                else if (svAllPoints) filtered = filtered.filter(h => !(h && (h.depthChecked1 != null || h.jDateChecked || h.dateChecked)));
+  <script>
+    const toFa = v => new Intl.NumberFormat('fa-IR').format(Number(v||0));
+    const ls = (k,d)=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } };
+    const jalaliToISO = j => j; // اگر مبدل جلالی دارید جایگزین کنید
 
-                const map = {};
-                filtered.forEach(h => {
-                    const rate = rateMap[h.rateId];
-                    const title = rate?.name || '—';
-                    map[title] = map[title] || { title, unit: 'نقطه', count: 0, unitPrice: 0 };
-                    map[title].count += 1;
-                });
+    const holes = ls('swiny_holes', []);            // ← کلیدها را در صورت نیاز با پروژه‌ات هماهنگ کن
+    const rates = ls('swiny_rates', []);
+    const contractors = ls('swiny_contractors', []);
+    const rateMapById = Object.fromEntries(rates.map(r=>[r.id, r]));
 
-                Object.values(map).forEach(g => {
-                    const sampleRate = projRates.find(r => r.name === g.title);
-                    g.unitPrice = Number(sampleRate?.price || sampleRate?.unitPrice || 0);
-                });
+    const contractorSelect = document.getElementById('contractorSelect');
+    if (contractors?.length){
+      contractors.forEach(c=>{
+        const opt=document.createElement('option');
+        opt.value = c.id || c.code || c.company || '';
+        opt.textContent = c.company || c.name || c.id || opt.value;
+        contractorSelect.appendChild(opt);
+      });
+    }
 
-                const rows = Object.values(map).map(g => ({ ...g, total: g.count * (g.unitPrice || 0) }));
-                rows.sort((a, b) => a.title.localeCompare(b.title, 'fa'));
-                return rows;
-            }, [projHoles, projRates, rateMap, svContractorId, svJStart, svJEnd, svCheckedOnly, svAllPoints]);
+    function isCheckedHole(h){
+      return !!(h && (h.depthChecked1!=null || h.jDateChecked || h.dateChecked || h.checked===true));
+    }
+    function currentUnitPriceByTitle(title){
+      const cand = rates.filter(r => r && (r.name===title));
+      if (!cand.length) return 0;
+      cand.sort((a,b)=> new Date(a.effective||a.date||0)-new Date(b.effective||b.date||0));
+      const last = cand[cand.length-1];
+      return Number(last.price || last.unitPrice || 0);
+    }
 
-            return (
-                <div>
-                    <h3>صورت وضعیت پیمانکار</h3>
-                    <label>پیمانکار</label>
-                    <select value={svContractorId} onChange={(e) => setSvContractorId(e.target.value)}>
-                        <option value="">همه پیمانکاران</option>
-                        {projContractors.map(c => <option key={c.id} value={c.id}>{c.company}</option>)}
-                    </select>
+    function render(){
+      const tbody=document.getElementById('svBody'); tbody.innerHTML='';
+      const cId = contractorSelect.value;
+      const jStart = document.getElementById('startJ').value.trim();
+      const jEnd = document.getElementById('endJ').value.trim();
+      const startISO = jStart ? jalaliToISO(jStart) : '';
+      const endISO = jEnd ? jalaliToISO(jEnd) : '';
+      const checkedOnly = document.getElementById('checkedOnly').checked;
+      const allPoints = document.getElementById('allPoints').checked;
 
-                    <label>از تاریخ (جلالی)</label>
-                    <input type="text" value={svJStart} onChange={(e) => setSvJStart(e.target.value)} placeholder="YYYY-MM-DD" />
+      let filtered = Array.isArray(holes) ? holes.slice() : [];
+      if (cId) filtered = filtered.filter(h => (h.groupType==='contractor') && (h.contractorId===cId));
+      if (startISO) filtered = filtered.filter(h => (h.dateInitial||'') >= startISO);
+      if (endISO)   filtered = filtered.filter(h => (h.dateInitial||'') <= endISO);
+      if (checkedOnly) filtered = filtered.filter(isCheckedHole);
+      else if (allPoints) filtered = filtered.filter(h => !isCheckedHole(h));
 
-                    <label>تا تاریخ (جلالی)</label>
-                    <input type="text" value={svJEnd} onChange={(e) => setSvJEnd(e.target.value)} placeholder="YYYY-MM-DD" />
+      const groups = {};
+      filtered.forEach(h=>{
+        const rate = rateMapById[h.rateId];
+        const title = rate?.name || '—';
+        (groups[title]=groups[title]||[]).push(h);
+      });
 
-                    <div>
-                        <label>
-                            <input type="checkbox" checked={svCheckedOnly} onChange={(e) => { setSvCheckedOnly(e.target.checked); if (e.target.checked) setSvAllPoints(false); }} />
-                            نقاط چِک‌مِنی شده
-                        </label>
-                        <label>
-                            <input type="checkbox" checked={svAllPoints} onChange={(e) => { setSvAllPoints(e.target.checked); if (e.target.checked) setSvCheckedOnly(false); }} />
-                            همه نقاط (فاقد چک‌من)
-                        </label>
-                    </div>
+      const titles = Object.keys(groups);
+      if (!titles.length){
+        const tr=document.createElement('tr'); const td=document.createElement('td');
+        td.colSpan=6; td.className='muted'; td.textContent='— موردی برای نمایش نیست —';
+        tr.appendChild(td); tbody.appendChild(tr); return;
+      }
 
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ردیف</th>
-                                <th>شرح</th>
-                                <th>واحد</th>
-                                <th>تعداد چاله</th>
-                                <th>قیمت واحد</th>
-                                <th>مبلغ این دوره</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {svRows.length === 0 ? (
-                                <tr>
-                                    <td colSpan="6">— موردی برای نمایش نیست —</td>
-                                </tr>
-                            ) : (
-                                svRows.map((r, i) => (
-                                    <tr key={r.title}>
-                                        <td>{toFa(i + 1)}</td>
-                                        <td>{r.title}</td>
-                                        <td>نقطه</td>
-                                        <td>{toFa(r.count)}</td>
-                                        <td>{toFa(r.unitPrice)}</td>
-                                        <td>{toFa(r.total)}</td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            );
-        };
+      titles.sort((a,b)=> a.localeCompare(b,'fa'));
+      titles.forEach((title,i)=>{
+        const list=groups[title]; const count=list.length;
+        const unitPrice=currentUnitPriceByTitle(title); const total=count*unitPrice;
+        const tr=document.createElement('tr');
+        function cell(v){ const td=document.createElement('td'); td.textContent=v; return td }
+        tr.appendChild(cell(toFa(i+1)));
+        tr.appendChild(cell(title));
+        tr.appendChild(cell('نقطه'));
+        tr.appendChild(cell(toFa(count)));
+        tr.appendChild(cell(toFa(unitPrice)));
+        tr.appendChild(cell(toFa(total)));
+        tbody.appendChild(tr);
+      });
+    }
 
-        // Exporting the component as default
-        export default SVContractorStatus;
-    </script>
+    document.getElementById('checkedOnly').addEventListener('change', e=>{
+      if (e.target.checked) document.getElementById('allPoints').checked=false; render();
+    });
+    document.getElementById('allPoints').addEventListener('change', e=>{
+      if (e.target.checked) document.getElementById('checkedOnly').checked=false; render();
+    });
+    document.getElementById('startJ').addEventListener('input', render);
+    document.getElementById('endJ').addEventListener('input', render);
+    contractorSelect.addEventListener('change', render);
+    render();
+  </script>
 </body>
 </html>
