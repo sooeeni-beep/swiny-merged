@@ -2303,6 +2303,19 @@ function HamburgerMenu({
                 </Card>
               )}
 
+
+              {tab === 'sv_contractor' && (
+                <Card title="صورت وضعیت پیمانکار">
+                  <div style={{overflow: 'hidden', borderRadius: 12}}>
+                    <iframe
+                      src="Invoice.html"
+                      style={{ width: '100%', minHeight: '85vh', border: 'none' }}
+                      title="صورت وضعیت پیمانکار"
+                    />
+                  </div>
+                </Card>
+              )}
+
               {tab === "projects" && settings.role === "admin" && (
                 <Card title="پروژه‌ها (ادمین)">
                   <div style={{ marginBottom: 10, display:"flex", gap:8, flexWrap:"wrap" }}>
