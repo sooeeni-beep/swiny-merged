@@ -621,7 +621,14 @@ table { width: 100%; }
         
         const [contractors, setContractors] = useLocalState(LS_KEYS.contractors, seedContractors);
 
-        // === Users registry per project ===
+        
+        // === SV (Contractor Statement) filters ===
+        const [svContractorId, setSvContractorId] = useState("");
+        const [svJStart, setSvJStart] = useState("");
+        const [svJEnd, setSvJEnd] = useState("");
+        const [svCheckedOnly, setSvCheckedOnly] = useState(false);
+        const [svAllPoints, setSvAllPoints] = useState(false);
+    // === Users registry per project ===
         const [usersByProjectStore, setUsersByProjectStore] = useLocalState(LS_KEYS.users, {});
         const usersByProject = usersByProjectStore || {};
         const getUsers = (pid = settings.projectId) => usersByProject[pid] || [];
@@ -729,7 +736,37 @@ table { width: 100%; }
         const rateMap = useMemo(() => Object.fromEntries(projRates.map((r) => [r.id, r])), [projRates]);
         const contractorMap = useMemo(() => Object.fromEntries(projContractors.map((c) => [c.id, c])), [projContractors]);
 
-        // forms
+        
+        // === SV rows computation based on filters ===
+        const svRows = useMemo(() => {
+          const startISO = svJStart ? jalaliToISO(svJStart) : "";
+          const endISO = svJEnd ? jalaliToISO(svJEnd) : "";
+          let filtered = projHoles.filter(h => true);
+          if (svContractorId) filtered = filtered.filter(h => h.groupType === "contractor" && h.contractorId === svContractorId);
+          if (startISO) filtered = filtered.filter(h => (h.dateInitial || "") >= startISO);
+          if (endISO) filtered = filtered.filter(h => (h.dateInitial || "") <= endISO);
+          if (svCheckedOnly) filtered = filtered.filter(h => !!(h && (h.depthChecked1!=null || h.jDateChecked || h.dateChecked)));
+          else if (svAllPoints) filtered = filtered.filter(h => !(h && (h.depthChecked1!=null || h.jDateChecked || h.dateChecked)));
+
+          const map = {};
+          filtered.forEach(h => {
+            const rate = rateMap[h.rateId];
+            const title = rate?.name || "—";
+            map[title] = map[title] || { title, unit: "نقطه", count: 0, unitPrice: 0 };
+            map[title].count += 1;
+          });
+
+          const today = nowISO();
+          Object.values(map).forEach(g => {
+            const sampleRate = projRates.find(r => r.name === g.title);
+            g.unitPrice = sampleRate ? resolvePriceAtDate(sampleRate, today, rateMap) : 0;
+          });
+
+          const rows = Object.values(map).map(g => ({ ...g, total: g.count * (g.unitPrice||0) }));
+          rows.sort((a,b)=> a.title.localeCompare(b.title, 'fa'));
+          return rows;
+        }, [projHoles, projRates, rateMap, svContractorId, svJStart, svJEnd, svCheckedOnly, svAllPoints]);
+    // forms
         const [newHole, setNewHole] = useState({
           code: "",
           swath: "",
