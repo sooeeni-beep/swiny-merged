@@ -12,216 +12,2804 @@
     <!-- Babel (compile JSX in browser) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Styles (inline for simplicity) -->
+    <!-- Load jalaali-js (ESM) and expose to window, then signal readiness -->
+    <script type="module">
+      import * as Jalaali from "https://esm.sh/jalaali-js@1?bundle";
+      window.Jalaali = Jalaali;
+      window.dispatchEvent(new Event("jalaali-ready"));
+    </script>
+
     <style>
+      /* اگر فایل فونت IRANYekanRD دارید، اینجا @font-face اضافه کنید */
+      /*
+      @font-face {
+        font-family: "iranyekanRD";
+        src: url("./fonts/IRANYekanRD-Regular.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "iranyekanRD";
+        src: url("./fonts/IRANYekanRD-Bold.woff2") format("woff2");
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+      }
+      */
+
       *{box-sizing:border-box}
-      html,body,#root{height:100%}
-      body{margin:0;background:#f6f7fb;color:#111;font-family: IRANYekan, tahoma, sans-serif}
-      table{border-collapse:collapse;width:100%}
-      th,td{border:1px solid #e5e7eb;padding:8px;text-align:center}
-      thead th{background:#f3f4f6;font-weight:600}
-      .menu-section-title{font-size:12px;color:#667085;margin:10px 0 6px}
-      .menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
-      .status-table{margin-top:12px}
-      .badge{display:inline-block;background:#e5edff;border:1px solid #c7d2fe;color:#1d4ed8;padding:2px 8px;border-radius:999px;font-size:12px}
-    </style>
+      html,body,#root{height:100%;margin:0}
+    
+/* === Hamburger Menu === */
+.hamburger-btn {
+  padding: 8px 12px; border: 1px solid #E5E7EB; background:#fff;
+  border-radius:10px; cursor:pointer; font-size:16px; line-height:1;
+}
+.menu-panel { position: relative; }
+.menu-dropdown {
+  position: absolute; top: 42px; left: 0; z-index: 50;
+  min-width: 260px; background:#fff; border:1px solid #E5E7EB; border-radius:14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.08); padding:10px; display:none;
+}
+.menu-dropdown.open { display:block; }
+.menu-section-title { font-size:12px; color:#6B7280; margin:6px 0 8px; }
+.menu-grid { display:grid; grid-template-columns: 1fr; gap:6px; }
+@media (min-width: 900px) { .menu-dropdown { left:auto; right:0; } }
+
+/* === Responsive controls: project/role fields === */
+.controls-row { display:flex; align-items:center; gap:12px; flex-wrap: nowrap; width:100%; }
+.field-wrap { order:1; flex: 1 1 0; min-width:260px; } /* desktop: like v2 */
+@media (max-width: 900px) {
+  .field-wrap { min-width:220px; }
+}
+@media (max-width: 640px) {
+  .controls-row { gap:8px; }
+  .field-wrap { flex: 1 1 calc(50% - 4px); min-width:160px; }
+}
+@media (max-width: 400px) {
+  .field-wrap { min-width:140px; }
+}
+@media (max-width: 340px) {
+  .field-wrap { min-width:130px; }
+}
+
+/* === Login form layout === */
+.login-form { order:2; flex: 1 1 100%; width:100%; display:grid; gap:6px; grid-template-columns: 1fr auto; align-items:center; }
+.login-form.hasName { grid-template-columns: 1fr 1fr auto; }
+@media (max-width: 640px) {
+  .login-form, .login-form.hasName { grid-template-columns: 1fr; }
+  .login-form button { justify-self: start; }
+}
+
+
+/* === Fixed topbar (only logo + hamburger) === */
+.topbar-fixed {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1100;
+  background: #F8FAFC;
+  border-bottom: 1px solid #E5E7EB;
+  padding: 8px 16px;
+}
+
+/* === Password row: input + button side-by-side (button on left in RTL) === */
+.pwd-row { display:flex; align-items:center; gap:6px; direction: rtl; }
+.pwd-row input { flex: 1 1 auto; }
+.pwd-row button { flex: 0 0 auto; }
+
+/* === Auth box (status + login) === */
+.auth-box {
+  border: 1px solid #E5E7EB;
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 12px;
+}
+.auth-status {
+  font-size: 12px;
+  color: #6B7280;
+  margin-bottom: 8px;
+}
+/* Ensure password row remains side-by-side with button on the left (RTL) */
+.pwd-row { display:flex; align-items:center; gap:6px; direction: rtl; }
+.pwd-row input { flex: 1 1 auto; }
+.pwd-row button { flex: 0 0 auto; }
+
+/* === Success Toast (global) === */
+:root { --topbar-h: 64px; } /* change once, applies everywhere */
+.toast-layer {
+  position: fixed;
+  top: calc(var(--topbar-h) + 10px);
+  left: 0; right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1200;
+}
+.toast-success {
+  background: #10B981;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(16,185,129,.35);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+
+/* Full-width helper */
+.fullwidth { width: 100%; max-width: none; margin: 0; }
+/* Tables: keep 100% width and allow horizontal scroll if needed */
+table { width: 100%; }
+.points-scroll { overflow-x: auto; }
+.controls-row{display:none !important;}
+
+/* === Reorder & left-align header items (no markup change) === */
+.topbar-fixed{
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important; /* instead of space-between */
+  gap: 8px !important;
+}
+
+/* neutralize inline auto-margins that push items right */
+.topbar-fixed > *{
+  margin-inline-start: 0 !important;
+}
+
+/* Order: 1) hamburger, 2) user/profile block, 3) logout (if standalone), 4) breadcrumb, 99) logo */
+.topbar-fixed > :has(.menu-panel){ order: 1; }      /* wrapper of the hamburger menu */
+.topbar-fixed > span{ order: 2; }                   /* user/profile container (often includes logout) */
+.topbar-fixed > .breadcrumb-line{ order: 4; }       /* address/breadcrumb bar */
+.topbar-fixed > img{ order: 99; }                   /* move logo to the end */
+
+/* If a standalone logout button exists as a direct child of header, place it third */
+.topbar-fixed > .logout-btn,
+.topbar-fixed > :has(> .logout-btn){ order: 3; }
+
+</style>
+
+
+
+
   </head>
   <body>
     <div id="root"></div>
 
-    <script type="text/babel">
-      const { useState, useMemo, useEffect } = React;
+    <!-- App code -->
+    <script type="text/babel" data-presets="react">
+      const { useEffect, useMemo, useState, useRef } = React;
 
-      // ===== Dummy UI primitives used by this file (to keep one-file) =====
-      const Card = ({title, actions, children}) => (
-        <div style={{background:'#fff',border:'1px solid #e5e7eb',borderRadius:14,padding:12,boxShadow:'0 1px 2px rgba(0,0,0,0.04)',marginBottom:12}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-            <div style={{fontWeight:600}}>{title}</div>
-            {actions}
-          </div>
-          {children}
-        </div>
-      );
-      const Badge = ({tone='blue', children}) => <span className="badge">{children}</span>;
-      const ItemBtn = ({onClick, children}) => (
-        <button onClick={onClick} style={{padding:'8px 10px',border:'1px solid #e5e7eb',background:'#fff',borderRadius:10,cursor:'pointer'}}>{children}</button>
-      );
-      const Select = ({label, value, onChange, options}) => (
-        <label style={{display:'flex',flexDirection:'column',gap:6}}>
-          <span style={{fontSize:12,color:'#667085'}}>{label}</span>
-          <select style={{padding:'8px 10px',border:'1px solid #e5e7eb',borderRadius:10}}
-                  value={value} onChange={e=>onChange(e.target.value)}>
-            {options.map(o=> <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </label>
-      );
-      const TextInput = ({label, value, onChange, placeholder}) => (
-        <label style={{display:'flex',flexDirection:'column',gap:6}}>
-          <span style={{fontSize:12,color:'#667085'}}>{label}</span>
-          <input style={{padding:'8px 10px',border:'1px solid #e5e7eb',borderRadius:10}}
-                 value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} />
-        </label>
-      );
-
+      // =====================
+      // Minimal CSS (no Tailwind)
+      // =====================
       const styles = {
-        grid3: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 },
-        table: { width:'100%' },
-        th: { fontWeight:600, background:'#f3f4f6' },
-        td: { },
+        app: { minHeight: "100vh", background: "#F8FAFC", color: "#111827", paddingBottom: 64,
+          fontFamily: "iranyekanRD, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" },
+        container: { width: "100%", maxWidth: "none", margin: "0", padding: 16, paddingTop: 64 },
+        headerRow: { display: "block", marginBottom: 16 },
+        h1: { fontSize: 22, fontWeight: 800, margin: 0 },
+        hint: { fontSize: 12, color: "#4B5563", marginTop: 4 },
+
+        row: { display: "flex", gap: 8, alignItems: "center" },
+        /* FIX: جهت RTL، آیتم‌ها از راست شروع شوند (نه چپ) */
+        controlsRow: { display: "flex", gap: 12, alignItems: "flex-start", justifyContent: "flex-start", flexWrap: "nowrap", width: "100%" },
+
+        grid3: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 },
+        grid2: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 },
+        card: { width: "100%", background: "#fff", border: "1px solid #E5E7EB", borderRadius: 14, padding: 12, boxShadow: "0 1px 2px rgba(0,0,0,0.04)" },
+        cardHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+        cardTitle: { fontSize: 16, fontWeight: 700 },
+        badge: (bg, fg) => ({ display: "inline-block", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: bg, color: fg }),
+        input: { width: "100%", padding: "8px 10px", borderRadius: 10, border: "1px solid #E5E7EB", outline: "none" },
+        label: { display: "flex", flexDirection: "column", gap: 6 },
+        labelText: { fontSize: 12, color: "#6B7280" },
+        button: { padding: "8px 12px", borderRadius: 10, border: "1px solid #111827", background: "#111827", color: "#fff", fontSize: 13, cursor: "pointer" },
+        buttonDisabled: { padding: "8px 12px", borderRadius: 10, border: "1px solid #D1D5DB", background: "#E5E7EB", color: "#9CA3AF", fontSize: 13, cursor: "not-allowed" },
+        buttonGhost: { padding: "8px 12px", borderRadius: 10, border: "1px solid #E5E7EB", background: "#fff", color: "#374151", fontSize: 13, cursor: "pointer" },
+        buttonGhostDisabled: { padding: "8px 12px", borderRadius: 10, border: "1px solid #E5E7EB", background: "#F3F4F6", color: "#9CA3AF", fontSize: 13, cursor: "not-allowed" },
+        divider: { margin: "12px 0", border: 0, borderTop: "1px solid #E5E7EB" },
+        tableWrap: { overflowX: "auto" },
+        table: { width: "100%", fontSize: 13, borderCollapse: "collapse" },
+        th: { textAlign: "right", color: "#6B7280", borderBottom: "1px solid #E5E7EB", padding: "8px 8px", whiteSpace: "nowrap" },
+        td: { borderTop: "1px solid #F3F4F6", padding: "8px 8px", verticalAlign: "top", whiteSpace: "nowrap" },
+        footer: { position: "fixed", bottom: 0, left: 0, right: 0, textAlign: "center", background: "#F8FAFC", borderTop: "1px solid #E5E7EB", color: "#6B7280", fontSize: 11, padding: "6px 8px", zIndex: 1000 }
       };
 
-      // ===== Helpers (stubs compatible with your app) =====
-      const toFa = (v)=> new Intl.NumberFormat('fa-IR').format(Number(v||0));
-      const nowISO = ()=> new Date().toISOString();
-      const jalaliToISO = (j)=> j; // NOTE: replace with your existing Jalaali converter
+      // =====================
+      // Utils
+      // =====================
+      const fmt = new Intl.NumberFormat("fa-IR");
+      const toFa = (n) => fmt.format(n ?? 0);
+      const pad2 = (n) => String(n).padStart(2, "0");
+      const nowISO = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
-      // Sample data readers (replace with your app's localStorage keys/structures)
-      const readLS = (k, d)=>{ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d } catch(e){ return d } };
+      // Safe access to window.Jalaali to avoid race
+      const isoToJalali = (iso) => {
+        if (!iso) return "";
+        const api = window.Jalaali;
+        if (!api?.toJalaali) return iso; // fallback until lib loads
+        const [y, m, d] = iso.split("-").map(Number);
+        const { jy, jm, jd } = api.toJalaali(y, m, d);
+        return `${jy}-${pad2(jm)}-${pad2(jd)}`;
+      };
+      const jalaliToISO = (jalali) => {
+        if (!jalali) return "";
+        const api = window.Jalaali;
+        if (!api?.toGregorian || !api?.isValidJalaaliDate) return ""; // wait for lib
+        const [jy, jm, jd] = jalali.split("-").map(Number);
+        if (!api.isValidJalaaliDate(jy, jm, jd)) return "";
+        const { gy, gm, gd } = api.toGregorian(jy, jm, jd);
+        return `${gy}-${pad2(gm)}-${pad2(gd)}`;
+      };
+      const todayJalali = () => isoToJalali(nowISO());
+      const minDateISO = "1970-01-01";
+      const uuid = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2));
+      const _clean = (s) => String(s ?? "").trim();
 
-      function App(){
-        // ======= EXISTING STATES (placeholder / mock for demo) =======
-        const [currentProjectId, setCurrentProjectId] = useState('DEMO');
-        const currentProject = { id: 'DEMO', name: 'نمونه' };
-        const [tab, setTab] = useState('sv_contractor');
+      // =====================
+      // LocalStorage Keys
+      // =====================
+      const LS_KEYS = {
+        users: "swiny.drilling.users.v1",
+        rates: "swiny.drilling.rates.v5",          // ← نسخه جدید (پروژه‌محور)
+        holes: "swiny.drilling.holes.v5",          // ← نسخه جدید (پروژه‌محور)
+        settings: "swiny.drilling.settings.v5",    // ← نسخه جدید (پروژه‌محور)
+        contractors: "swiny.drilling.contractors.v5", // ← نسخه جدید (پروژه‌محور)
+        projects: "swiny.drilling.projects.v1"
+      };
 
-        // Mock datasets (in app you already have these):
-        const projContractors = useMemo(()=>[
-          {id:'C1', company:'پیمانکار الف'},
-          {id:'C2', company:'پیمانکار ب'},
-        ],[]);
+      // =====================
+      // Seed data
+      // =====================
+      const SEED_PROJECT_ID = "P-000";
+      const seedProjects = [
+        { id: SEED_PROJECT_ID, name: "پروژه نمونه", owner: "—", contractNo: "—", budget: 0, currency: "IRR", startJ: todayJalali(), endJ: "", status: "فعال", notes: "" }
+      ];
+      const seedRates = [
+        { id: "R-001", projectId: SEED_PROJECT_ID, name: "۰ تا ۱۰ متر (نقطه)", unit: "نقطه", pitType:"single", depthFrom: 0, depthTo: 10, refId:null, versions: [{ price: 950000, effectiveFrom: minDateISO }] },
+        { id: "R-002", projectId: SEED_PROJECT_ID, name: "۱۰ تا ۲۰ متر (نقطه)", unit: "نقطه", pitType:"single", depthFrom: 10, depthTo: 20, refId:null, versions: [{ price: 1450000, effectiveFrom: minDateISO }] },
+        { id: "R-003", projectId: SEED_PROJECT_ID, name: "بیش از ۲۰ متر (نقطه)", unit: "نقطه", pitType:"single", depthFrom: 20, depthTo: null, refId:null, versions: [{ price: 3200000, effectiveFrom: minDateISO }] },
+      ];
+      const seedContractors = [{ id: "C-001", projectId: SEED_PROJECT_ID, company: "پیمانکاری الف", person: "آقای احمدی" }];
+      const seedHoles = [];
 
-        // In your real app, use your existing projHoles/projRates/rateMap
-        const projHoles = useMemo(()=> readLS('swiny_holes', [
-          { id:1, rateId:'R1', contractorId:'C1', groupType:'contractor', dateInitial:'2025-10-01T00:00:00Z', depthChecked1:12 },
-          { id:2, rateId:'R1', contractorId:'C1', groupType:'contractor', dateInitial:'2025-10-03T00:00:00Z' },
-          { id:3, rateId:'R2', contractorId:'C2', groupType:'contractor', dateInitial:'2025-10-05T00:00:00Z', jDateChecked:'1404-07-15' },
-        ]), []);
-        const projRates = useMemo(()=> readLS('swiny_rates', [
-          { id:'R1', name:'حفر چاهک ۱ تا ۵ متر', price: 1500000 },
-          { id:'R2', name:'حفر چاهک ۵ تا ۱۰ متر', price: 2200000 },
-        ]), []);
-        const rateMap = useMemo(()=> Object.fromEntries(projRates.map(r=>[r.id, r])), [projRates]);
+      // =====================
+      // Local state hook
+      // =====================
+      function useLocalState(key, initial) {
+        const [state, setState] = useState(() => {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            try { return JSON.parse(raw); } catch {}
+          }
+          return typeof initial === "function" ? initial() : initial;
+        });
+        useEffect(() => {
+          localStorage.setItem(key, JSON.stringify(state));
+        }, [key, state]);
+        return [state, setState];
+      }
 
-        // === SV (Contractor Statement) filters ===
-        const [svContractorId, setSvContractorId] = useState("");
-        const [svJStart, setSvJStart] = useState("");
-        const [svJEnd, setSvJEnd] = useState("");
-        const [svCheckedOnly, setSvCheckedOnly] = useState(false);
-        const [svAllPoints, setSvAllPoints] = useState(false);
+      // =====================
+      // Auth / Settings normalization (Project-aware)
+      // =====================
+      const roleLabel = (r) =>
+        ({
+          admin: "ادمین",
+          checker: "بازرس (چک‌من)",
+          contractor: "پیمانکار",
+          drilling: "کارشناس حفاری",
+          planner: "کارشناس برنامه‌ریزی",
+          viewer: "مشاهده‌گر",
+        }[r] || r);
 
-        // === SV rows computation based on filters ===
-        const svRows = useMemo(() => {
-          const startISO = svJStart ? jalaliToISO(svJStart) : "";
-          const endISO = svJEnd ? jalaliToISO(svJEnd) : "";
-          let filtered = projHoles.filter(h => true);
-          if (svContractorId) filtered = filtered.filter(h => h.groupType === "contractor" && h.contractorId === svContractorId);
-          if (startISO) filtered = filtered.filter(h => (h.dateInitial || "") >= startISO);
-          if (endISO)   filtered = filtered.filter(h => (h.dateInitial || "") <= endISO);
-          if (svCheckedOnly) filtered = filtered.filter(h => !!(h && (h.depthChecked1!=null || h.jDateChecked || h.dateChecked)));
-          else if (svAllPoints) filtered = filtered.filter(h => !(h && (h.depthChecked1!=null || h.jDateChecked || h.dateChecked)));
+      function normalizeSettings(s) {
+        // مهاجرت از نسخه قدیمی به ساختار پروژه‌محور
+        const role = s?.role || "viewer";
+        const projectId = s?.projectId || SEED_PROJECT_ID;
 
-          const map = {};
-          filtered.forEach(h => {
-            const rate = rateMap[h.rateId];
-            const title = rate?.name || "—";
-            map[title] = map[title] || { title, unit: "نقطه", count: 0, unitPrice: 0 };
-            map[title].count += 1;
-          });
+        // نگاشت نام‌ها و پسوردها براساس پروژه
+        const staffByProject = s?.staffByProject || {};
+        const passwordsByProject = s?.passwordsPerPersonByProject || {};
+        const profilesByProject = s?.profilesByProject || {};
 
-          const today = nowISO();
-          Object.values(map).forEach(g => {
-            const sampleRate = projRates.find(r => r.name === g.title);
-            g.unitPrice = Number(sampleRate?.price || sampleRate?.unitPrice || 0); // replace with resolvePriceAtDate if you use versions
-          });
+        // اگر نسخه قدیمی داشتیم، یک بار کپی به پروژه جاری
+        if (!staffByProject[projectId]) {
+          const legacyStaff = s?.staff || {
+            admin: [], checker: [], drilling: [], planner: [], contractor: []
+          };
+          staffByProject[projectId] = JSON.parse(JSON.stringify(legacyStaff));
+        }
+        if (!passwordsByProject[projectId]) {
+          const legacyPw = s?.passwordsPerPerson || {};
+          passwordsByProject[projectId] = JSON.parse(JSON.stringify(legacyPw));
+        }
+        if (!profilesByProject[projectId]) {
+          const legacyProfiles = s?.profiles || {};
+          profilesByProject[projectId] = JSON.parse(JSON.stringify(legacyProfiles));
+        }
 
-          const rows = Object.values(map).map(g => ({ ...g, total: g.count * (g.unitPrice || 0) }));
-          rows.sort((a,b)=> a.title.localeCompare(b.title, 'fa'));
-          return rows;
-        }, [projHoles, projRates, rateMap, svContractorId, svJStart, svJEnd, svCheckedOnly, svAllPoints]);
+        const passwords = s?.passwords || {
+          admin: "admin", checker: "admin", contractor: "admin", drilling: "admin", planner: "admin",
+        };
+
+        return {
+          role,
+          projectId,
+          passwords, // برای بوت‌استرپ ادمین
+          staffByProject,
+          passwordsPerPersonByProject: passwordsByProject,
+          profilesByProject,
+          companyLogoUrl: s?.companyLogoUrl || (s?.logos?.company || ""),
+          devLogoUrl: s?.devLogoUrl || (s?.logos?.developer || ""),
+        };
+      }
+
+      // =====================
+      // Versioned rate logic
+      // =====================
+      const getActiveVersion = (rate, asOf) => {
+        if (!rate?.versions?.length) return { price: 0, effectiveFrom: minDateISO };
+        const sorted = [...rate.versions].sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
+        let cur = sorted[0];
+        for (const v of sorted) if (v.effectiveFrom <= asOf) cur = v;
+        return cur;
+      };
+      const priceAtDate = (rate, asOf) => getActiveVersion(rate, asOf).price ?? 0;
+
+      const resolvePriceAtDate = (rate, asOf, rateMap) => {
+        if (!rate) return 0;
+        if (rate.pitType === "pattern" && rate.refId && rateMap[rate.refId]) {
+          return priceAtDate(rateMap[rate.refId], asOf);
+        }
+        return priceAtDate(rate, asOf);
+      };
+
+      const matchRateByDepth = (rates, depth) => {
+        if (depth == null) return null;
+        const c = rates.filter(
+          (r) =>
+            r.pitType !== "pattern" &&
+            (r.depthFrom == null || depth >= r.depthFrom) &&
+            (r.depthTo == null || depth < r.depthTo)
+        );
+        if (!c.length) return null;
+        c.sort((a, b) => (b.depthFrom ?? -Infinity) - (a.depthFrom ?? -Infinity));
+        return c[0];
+      };
+      const calcPricePerPoint = (hole, rate, rateMap) =>
+        resolvePriceAtDate(rate, hole?.dateChecked || hole?.dateInitial || nowISO(), rateMap);
+
+      // =====================
+      // Profile helpers (find logged-in user record)
+      // =====================
+      function useLoggedInUser(settings, getUsers) {
+        const pid = settings.projectId;
+        const role = settings.role;
+        const full = (settings.profilesByProject?.[pid]?.[role]) || "";
+        return React.useMemo(() => {
+          const list = getUsers(pid);
+          const match = list.find(u => (`${u.firstName||""} ${u.lastName||""}`).trim() === full.trim() && u.role===role);
+          return match || null;
+        }, [pid, role, full, getUsers, settings.profilesByProject]);
+      }
+
+      function ProfileView() {
+        const u = useLoggedInUser(settings, getUsers);
+        const [pwMode, setPwMode] = useState(false);
+        const [oldPw, setOldPw] = useState("");
+        const [newPw, setNewPw] = useState("");
+        const [newPw2, setNewPw2] = useState("");
+
+        if (!u) return <div style={{color:"#6B7280", fontSize:13}}>هیچ کاربری وارد نشده است.</div>;
+
+        const savePw = () => {
+          if (!oldPw || !newPw || !newPw2) return alert("تمام فیلدهای پسورد را پر کنید.");
+          if (String(u.password||"") !== String(oldPw)) return alert("پسورد قبلی نادرست است.");
+          if (newPw !== newPw2) return alert("تکرار پسورد جدید مطابقت ندارد.");
+          updateUserRecord(u.projectId, u.id, { password: newPw });
+          alert("پسورد با موفقیت تغییر کرد.");
+          setOldPw(""); setNewPw(""); setNewPw2(""); setPwMode(false);
+        };
 
         return (
-          <div style={{maxWidth:1100, margin:'0 auto', padding:16}}>
-            {/* === MENU (only showcases added items) === */}
-            <Card title="منو">
-              <div className="menu-section-title" style={{marginTop:10}}>صورت وضعیت</div>
-              <div className="menu-grid">
-                <ItemBtn onClick={()=>setTab('sv_contractor')}>صورت وضعیت پیمانکار</ItemBtn>
-                <ItemBtn onClick={()=>setTab('sv_company')}>صورت وضعیت شرکت</ItemBtn>
+          <div>
+            <div style={styles.grid3}>
+              <Select label="پروژه" value={u.projectId} onChange={()=>{}} options={[{value:u.projectId,label:(projects.find(p=>p.id===u.projectId)?.name||u.projectId)}]} disabled />
+              <Select label="نقش" value={u.role} onChange={()=>{}} options={[{value:u.role,label:roleLabel(u.role)}]} disabled />
+              <TextInput label="نام" value={u.firstName} onChange={()=>{}} readOnly />
+              <TextInput label="نام خانوادگی" value={u.lastName} onChange={()=>{}} readOnly />
+              <TextInput label="کد ملی" value={u.nationalId} onChange={()=>{}} readOnly />
+              <TextInput label="شماره پرسنلی" value={u.personnelNo} onChange={()=>{}} readOnly />
+              <TextInput label="شماره موبایل" value={u.mobile} onChange={()=>{}} readOnly />
+              <TextInput label="پست سازمانی" value={u.jobTitle} onChange={()=>{}} readOnly />
+              <TextInput label="سمت" value={u.position} onChange={()=>{}} readOnly />
+              <Select label="نوع اشتغال" value={u.employmentType} onChange={()=>{}} options={[{value:u.employmentType,label:u.employmentType==="company"?"شرکتی":"پیمانکاری"}]} disabled />
+              <TextInput label="نام شرکت" value={u.companyName} onChange={()=>{}} readOnly />
+              <TextInput label="آدرس" value={u.address} onChange={()=>{}} readOnly />
+            </div>
+
+            <div style={{ marginTop:12 }}>
+              {!pwMode ? (
+                <Button onClick={()=>setPwMode(true)}>تغییر پسورد</Button>
+              ) : (
+                <div>
+                  <div style={styles.grid3}>
+                    <TextInput type="password" label="پسورد فعلی" value={oldPw} onChange={setOldPw} />
+                    <TextInput type="password" label="پسورد جدید" value={newPw} onChange={setNewPw} />
+                    <TextInput type="password" label="تکرار پسورد جدید" value={newPw2} onChange={setNewPw2} />
+                  </div>
+                  <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                    <Button onClick={savePw}>تأیید</Button>
+                    <GhostButton onClick={()=>{ setPwMode(false); setOldPw(""); setNewPw(""); setNewPw2(""); }}>انصراف</GhostButton>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      
+      // =====================
+      // Profile view (plain text + change password)
+      // =====================
+      function ProfileTextView({ settings, getUsers, updateUserRecord, projects }) {
+        const u = useLoggedInUser(settings, getUsers);
+        const [pwMode, setPwMode] = useState(false);
+        const [oldPw, setOldPw] = useState("");
+        const [newPw, setNewPw] = useState("");
+        const [newPw2, setNewPw2] = useState("");
+
+        if (!u) {
+          return <div style={{color:"#6B7280", fontSize:13}}>هیچ کاربری وارد نشده است.</div>;
+        }
+
+        const savePw = () => {
+          if (!oldPw || !newPw || !newPw2) return alert("تمام فیلدهای پسورد را پر کنید.");
+          if (String(u.password||"") !== String(oldPw)) return alert("پسورد قبلی نادرست است.");
+          if (newPw !== newPw2) return alert("تکرار پسورد جدید مطابقت ندارد.");
+          updateUserRecord(u.projectId, u.id, { password: newPw });
+          alert("پسورد با موفقیت تغییر کرد.");
+          setOldPw(""); setNewPw(""); setNewPw2(""); setPwMode(false);
+        };
+
+        const projectName = projects.find(p => p.id === u.projectId)?.name || u.projectId;
+        const roleFa = ({
+          admin: "ادمین", checker: "بازرس (چک‌من)", contractor: "پیمانکار",
+          drilling: "کارشناس حفاری", planner: "کارشناس برنامه‌ریزی", viewer: "مشاهده‌گر"
+        }[u.role] || u.role);
+
+        const Row = ({label, value}) => (
+          <div style={{display:"flex", gap:8, padding:"6px 0", borderBottom:"1px solid #F3F4F6"}}>
+            <div style={{width:160, color:"#6B7280", fontSize:12}}>{label}</div>
+            <div style={{fontSize:13, fontWeight:600}}>{value || "—"}</div>
+          </div>
+        );
+
+        return (
+          <div>
+            <div style={{border:"1px solid #E5E7EB", borderRadius:12, padding:12, background:"#fff"}}>
+              <Row label="پروژه" value={projectName} />
+              <Row label="نقش" value={roleFa} />
+              <Row label="نام" value={u.firstName} />
+              <Row label="نام خانوادگی" value={u.lastName} />
+              <Row label="کد ملی" value={u.nationalId} />
+              <Row label="شماره پرسنلی" value={u.personnelNo} />
+              <Row label="شماره موبایل" value={u.mobile} />
+              <Row label="پست سازمانی" value={u.jobTitle} />
+              <Row label="سمت" value={u.position} />
+              <Row label="نوع اشتغال" value={u.employmentType==="company"?"شرکتی":"پیمانکاری"} />
+              <Row label="نام شرکت" value={u.companyName} />
+              <Row label="آدرس" value={u.address} />
+            </div>
+
+            <div style={{ marginTop:12 }}>
+              {!pwMode ? (
+                <Button onClick={()=>setPwMode(true)}>تغییر پسورد</Button>
+              ) : (
+                <div style={{border:"1px solid #E5E7EB", borderRadius:12, padding:12, background:"#fff"}}>
+                  <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(220px,1fr))", gap:12}}>
+                    <TextInput type="password" label="پسورد فعلی" value={oldPw} onChange={setOldPw} />
+                    <TextInput type="password" label="پسورد جدید" value={newPw} onChange={setNewPw} />
+                    <TextInput type="password" label="تکرار پسورد جدید" value={newPw2} onChange={setNewPw2} />
+                  </div>
+                  <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                    <Button onClick={savePw}>تأیید</Button>
+                    <GhostButton onClick={()=>{ setPwMode(false); setOldPw(""); setNewPw(""); setNewPw2(""); }}>انصراف</GhostButton>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+    // =====================
+      // UI primitives
+      // =====================
+      function Badge({ children, tone = "gray" }) {
+        const palette = {
+          gray: ["#F3F4F6", "#374151"],
+          green: ["#E8F5E9", "#1B5E20"],
+          amber: ["#FFF7ED", "#92400E"],
+          red: ["#FEE2E2", "#991B1B"],
+          blue: ["#EFF6FF", "#1E3A8A"],
+        };
+        const [bg, fg] = palette[tone] || palette.gray;
+        return <span style={styles.badge(bg, fg)}>{children}</span>;
+      }
+      function Card({ title, actions, children }) {
+        return (
+          <div style={styles.card}>
+            <div style={styles.cardHeader}>
+              <h3 style={styles.cardTitle}>{title}</h3>
+              <div>{actions}</div>
+            </div>
+            {children}
+          </div>
+        );
+      }
+      function TextInput({ label, value, onChange, type = "text", placeholder, disabled, dir, readOnly }) {
+        return (
+          <label style={styles.label}>
+            <span style={styles.labelText}>{label}</span>
+            <input
+              style={{ ...styles.input, background: readOnly || disabled ? "#F3F4F6" : "#fff" }}
+              value={value ?? ""}
+              onChange={(e) =>
+                onChange(type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value)
+              }
+              type={type}
+              placeholder={placeholder}
+              disabled={disabled || readOnly}
+              dir={dir}
+              readOnly={readOnly}
+            />
+          </label>
+        );
+      }
+      function Select({ label, value, onChange, options, disabled }) {
+        return (
+          <label style={styles.label}>
+            <span style={styles.labelText}>{label}</span>
+            <select style={{...styles.input, background: disabled ? "#F3F4F6" : "#fff"}} value={value ?? ""} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+              <option value="" disabled>
+                انتخاب کنید…
+              </option>
+              {options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        );
+      }
+      const Divider = () => <hr style={styles.divider} />;
+      function Button({ children, onClick, disabled }) {
+        return (
+          <button onClick={disabled ? undefined : onClick} disabled={disabled} style={disabled ? styles.buttonDisabled : styles.button}>
+            {children}
+          </button>
+        );
+      }
+      function GhostButton({ children, onClick, disabled }) {
+        return (
+          <button onClick={disabled ? undefined : onClick} disabled={disabled} style={disabled ? styles.buttonGhostDisabled : styles.buttonGhost}>
+            {children}
+          </button>
+        );
+      }
+
+      // =====================
+      // App
+      // =====================
+      function App() {
+        const [settingsRaw, setSettingsRaw] = useLocalState(LS_KEYS.settings, () => normalizeSettings({ role: "viewer", projectId: SEED_PROJECT_ID }));
+        const settings = normalizeSettings(settingsRaw); // تضمین نرمال بودن
+        const setSettings = (next) => setSettingsRaw(normalizeSettings(next));
+
+        const [projects, setProjects] = useLocalState(LS_KEYS.projects, seedProjects);
+        const [rates, setRates] = useLocalState(LS_KEYS.rates, seedRates);
+        const [holes, setHoles] = useLocalState(LS_KEYS.holes, seedHoles);
+        // --- Toast state for submit/edit success ---
+        const [toastVisible, setToastVisible] = useState(false);
+        const [toastText, setToastText] = useState("");
+        const toastTimerRef = useRef(null);
+        
+        const [contractors, setContractors] = useLocalState(LS_KEYS.contractors, seedContractors);
+
+        // === Users registry per project ===
+        const [usersByProjectStore, setUsersByProjectStore] = useLocalState(LS_KEYS.users, {});
+        const usersByProject = usersByProjectStore || {};
+        const getUsers = (pid = settings.projectId) => usersByProject[pid] || [];
+        const setUsers = (pid, arr) => setUsersByProjectStore({ ...(usersByProjectStore||{}), [pid]: arr });
+
+        // === User helpers ===
+        const addUserRecord = (u) => {
+          const pid = u.projectId || settings.projectId;
+          const arr = getUsers(pid);
+          setUsers(pid, [ { ...u, id: uuid(), createdAt: new Date().toISOString() }, ...arr ]);
+
+          // (optional) mirror minimal info to legacy structures if needed
+          try {
+            const ns = normalizeSettings(settings);
+            ns.staffByProject[pid] = ns.staffByProject[pid] || { admin:[], checker:[], drilling:[], planner:[], contractor:[] };
+            const fullname = `${u.firstName||""} ${u.lastName||""}`.trim();
+            if (fullname && u.role) {
+              const list = ns.staffByProject[pid][u.role] || [];
+              if (!list.includes(fullname)) list.unshift(fullname);
+              ns.staffByProject[pid][u.role] = list;
+              ns.passwordsPerPersonByProject[pid] = ns.passwordsPerPersonByProject[pid] || {};
+              ns.passwordsPerPersonByProject[pid][u.role] = ns.passwordsPerPersonByProject[pid][u.role] || {};
+              ns.passwordsPerPersonByProject[pid][u.role][fullname] = u.password || "";
+            }
+            setSettings(ns);
+          } catch(e) {}
+        };
+        const updateUserRecord = (pid, id, patch) => {
+          const arr = getUsers(pid).map(r => r.id===id ? { ...r, ...patch, updatedAt: new Date().toISOString() } : r);
+          setUsers(pid, arr);
+        };
+        const deleteUserRecord = (pid, id) => {
+          if (!confirm("حذف این کاربر؟")) return;
+          const arr = getUsers(pid).filter(r => r.id!==id);
+          setUsers(pid, arr);
+        };
+        const exportUsersCSV = (pid = settings.projectId) => {
+          const arr = getUsers(pid);
+          const headers = ["projectId","role","firstName","lastName","nationalId","personnelNo","mobile","jobTitle","position","employmentType","companyName","password","address"];
+          const rows = arr.map(u => headers.map(h => (u[h] ?? "")).join(","));
+          const csv = [headers.join(","), ...rows].join("\n");
+          const blob = new Blob(["\uFEFF"+csv], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a"); a.href = url; a.download = `users_${pid}_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+          URL.revokeObjectURL(url);
+        };
+        const importUsersCSV = (pid = settings.projectId, file) => {
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const text = e.target.result || "";
+            const lines = text.split(/\r?\n/).filter(Boolean);
+            if (!lines.length) return;
+            const headers = lines[0].split(",").map(s=>s.trim());
+            const idx = (k)=> headers.indexOf(k);
+            const arr = lines.slice(1).map(line => {
+              const cols = line.split(",");
+              const obj = {};
+              ["projectId","role","firstName","lastName","nationalId","personnelNo","mobile","jobTitle","position","employmentType","companyName","password","address"].forEach(k => {
+                obj[k] = cols[idx(k)] ?? "";
+              });
+              obj.projectId = obj.projectId || pid;
+              return obj;
+            });
+            const merged = [...arr.reverse(), ...getUsers(pid)];
+            setUsers(pid, merged);
+          };
+          reader.readAsText(file, "utf-8");
+        };
+    
+        const [tab, setTab] = useState("dash");
+        const [editingUser, setEditingUser] = useState(null);
+        const [adminNewPw, setAdminNewPw] = useState("");
+        const currentProjectId = settings.projectId;
+
+        // ویرایش ردیف
+        const [editingId, setEditingId] = useState(null);
+
+        // ----- Auth UI states -----
+        const [selectedRoleUI, setSelectedRoleUI] = useState(settings.role);
+        const [loginName, setLoginName] = useState("");
+        const [loginPass, setLoginPass] = useState("");
+        const showLoginForRole = selectedRoleUI !== "viewer" && selectedRoleUI !== settings.role;
+
+        const projectList = projects.map(p => ({ value: p.id, label: p.name }));
+        const currentProject = projects.find(p => p.id === currentProjectId);
+
+        const currentStaff = settings.staffByProject[currentProjectId] || { admin:[],checker:[],drilling:[],planner:[],contractor:[] };
+        const currentProfiles = settings.profilesByProject[currentProjectId] || {};
+        const currentPasswords = settings.passwordsPerPersonByProject[currentProjectId] || {};
+
+        const hasStaff = (role) => Array.isArray(currentStaff?.[role]) && currentStaff[role].length > 0;
+        const requiresNameNow = selectedRoleUI !== "viewer" && (selectedRoleUI !== "admin" || hasStaff("admin"));
+
+        const roleName = roleLabel(settings.role);
+        const roleDisplayName = currentProfiles?.[settings.role] && currentProfiles[settings.role] !== "—"
+          ? currentProfiles[settings.role]
+          : roleName;
+
+        // فقط داده‌های پروژه جاری
+        const projRates = useMemo(() => rates.filter(r => r.projectId === currentProjectId), [rates, currentProjectId]);
+        const projContractors = useMemo(() => contractors.filter(c => c.projectId === currentProjectId), [contractors, currentProjectId]);
+        const projHoles = useMemo(() => holes.filter(h => h.projectId === currentProjectId), [holes, currentProjectId]);
+
+        const rateMap = useMemo(() => Object.fromEntries(projRates.map((r) => [r.id, r])), [projRates]);
+        const contractorMap = useMemo(() => Object.fromEntries(projContractors.map((c) => [c.id, c])), [projContractors]);
+
+        // forms
+        const [newHole, setNewHole] = useState({
+          code: "",
+          swath: "",
+          pointType: "new",
+
+          groupType: "company",
+          contractorId: "",
+          contractorCompany: "",
+          contractorName: "",
+          groupName: "",
+
+          supervisor: "",
+          foreman: "",
+          mechanic: "",
+          pitType: "single",
+          depth1: "",
+          depth2: "",
+
+          jDateInitial: todayJalali(),
+          rateIdText: "",
+          rateId: "",
+          notes: "",
+        });
+
+        // شروع اصلاح
+        const beginEdit = (h) => {
+          setEditingId(h.id);
+          setNewHole({
+            code: h.code || "",
+            swath: h.swath || "",
+            pointType: h.pointType || "new",
+
+            groupType: h.groupType || "company",
+            contractorId: h.contractorId || "",
+            contractorCompany: h.contractorCompany || "",
+            contractorName: h.contractorName || "",
+            groupName: h.groupName || "",
+
+            supervisor: h.supervisor || "",
+            foreman: h.foreman || "",
+            mechanic: h.mechanic || "",
+            pitType: h.pitType || "single",
+            depth1: h.depth1 ?? "",
+            depth2: (h.pitType === "pattern" ? (h.depth2 ?? "") : ""),
+
+            jDateInitial: h.jDateInitial || (h.dateInitial ? isoToJalali(h.dateInitial) : todayJalali()),
+            rateIdText: h.rateId || "",
+            rateId: h.rateId || "",
+            notes: h.notes || "",
+          });
+          setTab("new");
+        };
+
+        const deleteHole = (id) => {
+          if (!confirm("حذف این ردیف؟")) return;
+          setHoles((prev) => prev.filter((x) => x.id !== id));
+          if (editingId === id) setEditingId(null);
+            // success toast (edit)
+            setToastText("ویرایش با موفقیت ذخیره شد");
+            setToastVisible(true);
+            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+            toastTimerRef.current = setTimeout(() => setToastVisible(false), 3000);
+        };
+
+        // Check-man states
+        const [queryCode, setQueryCode] = useState("");
+        const [selectedPitType, setSelectedPitType] = useState("single");
+        const [checkDepth1, setCheckDepth1] = useState("");
+        const [checkDepth2, setCheckDepth2] = useState("");
+        const [checkJDate, setCheckJDate] = useState(todayJalali());
+        const canUseCheck = settings.role === "checker" || settings.role === "admin";
+
+        const [rateDrafts, setRateDrafts] = useState({});
+
+        // === Signup/Login UI states ===
+        const [userMenuOpen, setUserMenuOpen] = useState(false);
+        const [signup, setSignup] = useState({
+          projectId: settings.projectId,
+          role: "drilling",
+          firstName:"", lastName:"", nationalId:"", personnelNo:"", mobile:"",
+          jobTitle:"", position:"", employmentType:"company", companyName:"", address:"",
+          password:"", confirmPassword:"", acceptTerms:false
+        });
+        useEffect(()=>{ setSignup(s=>({...s, projectId: settings.projectId})); }, [settings.projectId]);
+        const canSubmitSignup = () => {
+          const s = signup;
+          return s.acceptTerms && s.projectId && s.role && s.firstName && s.lastName && s.nationalId && s.password && (s.password===s.confirmPassword);
+        };
+
+        // اگر کاربر نقش «بیننده» داشته باشد (یعنی هنوز لاگین نکرده)، این صفحه به صفحه‌ی ورود/انتخاب پنل منتقل می‌شود.
+        useEffect(() => {
+          if (settings.role === "viewer") {
+            try {
+              window.location.href = "INDEX_MERGED.html";
+            } catch (e) {
+              if (window.parent) {
+                try {
+                  window.parent.location.href = "INDEX_MERGED.html";
+                } catch (_) {}
+              }
+            }
+          }
+        }, [settings.role]);
+        const doSignup = () => {
+          if (!canSubmitSignup()) return alert("فیلدهای ضروری را کامل کنید و قوانین را بپذیرید.");
+          addUserRecord({ ...signup });
+          alert("ثبت‌نام با موفقیت انجام شد.");
+          setSignup({ projectId: settings.projectId, role:"drilling", firstName:"", lastName:"", nationalId:"", personnelNo:"", mobile:"", jobTitle:"", position:"", employmentType:"company", companyName:"", address:"", password:"", confirmPassword:"", acceptTerms:false });
+          setTab("staff");
+        };
+        const [loginNID, setLoginNID] = useState("");
+        const [loginPW, setLoginPW] = useState("");
+        const [loginProject, setLoginProject] = useState(settings.projectId);
+        useEffect(()=>setLoginProject(settings.projectId), [settings.projectId]);
+        const doLoginNID = () => {
+          const pid = loginProject || settings.projectId;
+          const list = getUsers(pid);
+          const u = list.find(x => String(x.nationalId||"").trim() === String(loginNID||"").trim());
+          if (!u) return alert("کاربری با این کد ملی در پروژه انتخاب‌شده یافت نشد.");
+          if (String(u.password) !== String(loginPW)) return alert("پسورد نادرست است.");
+          const fullname = (u.firstName + " " + u.lastName).trim();
+          const ns = normalizeSettings({
+            ...settings,
+            role: u.role,
+            projectId: pid,
+            profilesByProject: { ...(settings.profilesByProject||{}), [pid]: { ...(settings.profilesByProject?.[pid]||{}), [u.role]: fullname } }
+          });
+          setSettings(ns);
+          setSelectedRoleUI(u.role);
+          setUserMenuOpen(false);
+          setTab("dash");
+          setLoginNID(""); setLoginPW("");
+        };
+        // اصلاح تابع خروج: اکنون تنظیمات کاربر را ریست کرده و پیامی برای
+        // بازگشت به صفحه ورود مشترک ارسال می‌کند.  این پیام توسط
+        // صفحه‌ی والد (INDEX_MERGED.html) دریافت می‌شود و ورود مجدد را
+        // مدیریت می‌کند. در صورت عدم وجود iframe یا خطا، fallback به
+        // صفحه‌ی ورود یکپارچه انجام می‌شود.
+        const doLogout = () => {
+          // کاربر را به حالت «بیننده» بازگردانید و منو را ببندید
+          setSettings({ ...settings, role: "viewer" });
+          setSelectedRoleUI("viewer");
+          setUserMenuOpen(false);
+          try {
+            if (window.parent && window.parent !== window) {
+              // تلاش کنید مستقیماً والد (صفحه‌ی یکپارچه) را به آدرس ورود منتقل کنید.
+              window.parent.location.href = 'INDEX_MERGED.html';
+            } else {
+              // اگر در iframe نیستیم، همین صفحه را هدایت کنید.
+              window.location.href = 'INDEX_MERGED.html';
+            }
+          } catch (e) {
+            // اگر دسترسی به تغییر مکان والد ممکن نبود (برای مثال به دلیل
+            // محدودیت امنیتی)، از پیام postMessage استفاده می‌کنیم تا
+            // صفحه‌ی والد خودش عمل هدایت را انجام دهد.
+            try {
+              if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'logoutToLogin' }, '*');
+              } else {
+                window.location.href = 'INDEX_MERGED.html';
+              }
+            } catch (_) {
+              // آخرین fallback: همین صفحه را هدایت کنید.
+              window.location.href = 'INDEX_MERGED.html';
+            }
+          }
+        };
+
+        // دکمه بازگشت به انتخاب پنل؛ برای کاربران ادمین نمایش داده می‌شود
+        const goToPanelSelection = () => {
+          /*
+            به جای تغییر مکان صفحه (که منجر به خروج کاربر می‌شود)،
+            پیامی به پدر (iframe میزبان) ارسال می‌کنیم تا صفحه انتخاب پنل را
+            دوباره نمایش دهد.  این پیغام در INDEX_MERGED.html شنیده می‌شود و
+            موجب مخفی شدن iframe و نمایش مجدد صفحه انتخاب پنل می‌گردد.
+          */
+          try {
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage({ type: 'backToPanelChoice' }, '*');
+            } else {
+              // اگر در iframe نیستیم، به صورت fallback به صفحه مشترک برویم
+              window.location.href = 'INDEX_MERGED.html';
+            }
+          } catch (e) {
+            // در صورت بروز خطا، fallback
+            window.location.href = 'INDEX_MERGED.html';
+          }
+        };
+        const [usersQuery, setUsersQuery] = useState("");
+            const setDraft = (id, patch) => setRateDrafts((p) => ({ ...p, [id]: { ...(p[id] || {}), ...patch } }));
+
+        // holes add/update
+        const addHole = () => {
+          if (!currentProjectId) return alert("ابتدا یک پروژه انتخاب کنید.");
+          if (!newHole.code) return alert("کد نقطه الزامی است.");
+          if (newHole.groupType === "contractor") {
+            if (!newHole.contractorId) return alert("انتخاب «پیمانکار (از لیست)» الزامی است.");
+          } else {
+            if (!newHole.groupName.trim()) return alert("نام گروه را وارد کنید.");
+          }
+
+          const d1 = newHole.depth1 === "" ? null : Number(newHole.depth1);
+          const d2 = newHole.pitType === "pattern" ? (newHole.depth2 === "" ? null : Number(newHole.depth2)) : null;
+          const depthForRate = d2 != null ? Math.max(d1 ?? 0, d2) : d1 ?? 0;
+
+          let rateId = newHole.rateId || newHole.rateIdText;
+          if (!rateId) {
+            const byDepth = matchRateByDepth(projRates, Number(depthForRate));
+            if (byDepth) rateId = byDepth.id;
+          }
+          if (!rateId) return alert("آیتم نرخ یافت/انتخاب نشد.");
+
+          // بررسی تکراری بودن کد در پروژه جاری
+          if (editingId) {
+            if (projHoles.some((h) => h.code === newHole.code && h.id !== editingId)) {
+              return alert("کد نقطه تکراری است.");
+            }
+          } else {
+            if (projHoles.some((h) => h.code === newHole.code)) return alert("کد نقطه تکراری است.");
+          }
+
+          const dateISO = jalaliToISO(newHole.jDateInitial) || nowISO();
+
+          if (editingId) {
+            const old = holes.find((x) => x.id === editingId);
+            if (!old) {
+              alert("رکورد برای ویرایش یافت نشد؛ به‌عنوان ردیف جدید ذخیره می‌شود.");
+            }
+            const updated = {
+              ...(old || {}),
+              projectId: currentProjectId,
+              code: newHole.code.trim(),
+              contractorId: newHole.groupType === "contractor" ? newHole.contractorId : "",
+
+              rateId,
+              swath: newHole.swath || "",
+              pointType: newHole.pointType,
+              groupType: newHole.groupType,
+              contractorName: newHole.groupType === "contractor" ? newHole.contractorName || "" : "",
+              contractorCompany: newHole.groupType === "contractor" ? (newHole.contractorCompany || contractorMap[newHole.contractorId]?.company || "") : "",
+              groupName: newHole.groupType === "company" ? newHole.groupName || "" : "",
+              supervisor: newHole.supervisor || "",
+              foreman: newHole.foreman || "",
+              mechanic: newHole.mechanic || "",
+              pitType: newHole.pitType,
+              depth1: d1,
+              depth2: d2,
+
+              jDateInitial: newHole.jDateInitial || todayJalali(),
+              dateInitial: dateISO,
+
+              notes: newHole.notes?.trim() || "",
+
+              // نگه‌داشتن فیلدهای چک‌من قبلی
+              depthChecked1: old?.depthChecked1 ?? null,
+              depthChecked2: old?.depthChecked2 ?? null,
+              jDateChecked: old?.jDateChecked || "",
+              dateChecked: old?.dateChecked || null,
+
+              // نگه‌داشتن سازنده اولیه
+              createdByRole: old?.createdByRole || settings.role,
+              createdByName: old?.createdByName || roleDisplayName,
+
+              history: [{ ts: new Date().toISOString(), by: roleDisplayName, action: "ویرایش نقطه" }, ...(old?.history || [])],
+            };
+
+            setHoles((prev) => prev.map((x) => (x.id === editingId ? updated : x)));
+            setEditingId(null);
+            // success toast (edit)
+            setToastText("ویرایش با موفقیت ذخیره شد");
+            setToastVisible(true);
+            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+            toastTimerRef.current = setTimeout(() => setToastVisible(false), 3000);
+          } else {
+            const hole = {
+              id: uuid(),
+              projectId: currentProjectId,
+              code: newHole.code.trim(),
+              contractorId: newHole.groupType === "contractor" ? newHole.contractorId : "",
+
+              rateId,
+              swath: newHole.swath || "",
+              pointType: newHole.pointType,
+              groupType: newHole.groupType,
+              contractorName: newHole.groupType === "contractor" ? newHole.contractorName || "" : "",
+              contractorCompany: newHole.groupType === "contractor" ? (newHole.contractorCompany || contractorMap[newHole.contractorId]?.company || "") : "",
+              groupName: newHole.groupType === "company" ? newHole.groupName || "" : "",
+              supervisor: newHole.supervisor || "",
+              foreman: newHole.foreman || "",
+              mechanic: newHole.mechanic || "",
+              pitType: newHole.pitType,
+              depth1: d1,
+              depth2: d2,
+
+              jDateInitial: newHole.jDateInitial || todayJalali(),
+              dateInitial: dateISO,
+
+              depthChecked1: null,
+              depthChecked2: null,
+              jDateChecked: "",
+              dateChecked: null,
+
+              notes: newHole.notes?.trim() || "",
+
+              createdByRole: settings.role,
+              createdByName: roleDisplayName,
+
+              history: [{ ts: new Date().toISOString(), by: roleDisplayName, action: "ثبت نقطه" }],
+            };
+            setHoles([hole, ...holes]);
+            // success toast (new)
+            setToastText("ثبت با موفقیت انجام شد");
+            setToastVisible(true);
+            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+            toastTimerRef.current = setTimeout(() => setToastVisible(false), 3000);
+          }
+
+          // پاکسازی فرم
+          setNewHole((prev) => ({
+            ...prev,
+            code: "",
+            swath: "",
+            pitType: "single",
+            depth1: "",
+            depth2: "",
+            rateIdText: prev.rateIdText,
+            rateId: prev.rateId,
+          }));
+        };
+
+        const findHole = (code) => projHoles.find((h) => h.code === code);
+
+        // وقتی کد نقطه عوض شد...
+        useEffect(() => {
+          const h = findHole(queryCode);
+          if (!h) return;
+          setSelectedPitType(h.pitType || "single");
+          setCheckDepth1(h.depthChecked1 ?? "");
+          setCheckDepth2(h.depthChecked2 ?? "");
+          setCheckJDate(h.jDateChecked || todayJalali());
+        }, [queryCode, currentProjectId]);
+
+        const applyCheck = () => {
+          if (!canUseCheck) return;
+          if (!queryCode) return alert("کد نقطه را وارد کنید.");
+          const h = findHole(queryCode);
+          if (!h) return alert("نقطه‌ای با این کد در پروژه فعال یافت نشد.");
+
+          const isPattern = selectedPitType === "pattern";
+          if (!isPattern) {
+            if (checkDepth1 === "") return alert("عمق چک‌من را وارد کنید.");
+          } else {
+            if (checkDepth1 === "" && checkDepth2 === "") return alert("حداقل یکی از عمق‌های چک‌من را وارد کنید.");
+          }
+
+          const dateISO = jalaliToISO(checkJDate) || nowISO();
+          const updated = {
+            ...h,
+            depthChecked1: checkDepth1 === "" ? null : Number(checkDepth1),
+            depthChecked2: isPattern ? (checkDepth2 === "" ? null : Number(checkDepth2)) : null,
+            jDateChecked: checkJDate,
+            dateChecked: dateISO,
+            history: [
+              {
+                ts: new Date().toISOString(),
+                by: roleDisplayName,
+                action: isPattern
+                  ? `ثبت/ویرایش عمق چک‌من به ${checkDepth1 || "—"} و ${checkDepth2 || "—"} متر`
+                  : `ثبت/ویرایش عمق چک‌من به ${checkDepth1} متر`,
+              },
+              ...h.history,
+            ],
+          };
+          setHoles(holes.map((x) => (x.id === h.id ? updated : x)));
+          setCheckDepth1("");
+          setCheckDepth2("");
+        };
+
+        const clearCheck = (id) =>
+          setHoles((p) =>
+            p.map((h) =>
+              h.id === id
+                ? {
+                    ...h,
+                    depthChecked1: null,
+                    depthChecked2: null,
+                    jDateChecked: "",
+                    dateChecked: null,
+                    history: [{ ts: new Date().toISOString(), by: roleDisplayName, action: "حذف عمق چک‌من" }, ...h.history],
+                  }
+                : h
+            )
+          );
+
+        // rates
+        const addRate = () => {
+          if (settings.role !== "admin") return alert("فقط ادمین.");
+          if (!currentProjectId) return alert("ابتدا یک پروژه انتخاب کنید.");
+          const customId = prompt("شناسه جدید آیتم نرخ را وارد کنید (یکتا):", `R-${String(Math.floor(Math.random() * 900) + 100)}`);
+          if (!customId) return;
+          if (projRates.some((x) => x.id === customId)) return alert("این شناسه در پروژه جاری قبلاً استفاده شده است.");
+          setRates([
+            {
+              id: customId,
+              projectId: currentProjectId,
+              name: "آیتم جدید",
+              unit: "نقطه",
+              pitType: "single",
+              depthFrom: null,
+              depthTo: null,
+              refId: null,
+              versions: [{ price: 0, effectiveFrom: nowISO() }],
+            },
+            ...rates,
+          ]);
+        };
+        const removeRate = (id) => {
+          if (settings.role !== "admin") return alert("فقط ادمین.");
+          if (!confirm("حذف آیتم نرخ؟")) return;
+          setRates((p) => p.filter((r) => !(r.projectId === currentProjectId && r.id === id)));
+          setHoles((p) => p.map((h) => (h.projectId === currentProjectId && h.rateId === id ? { ...h, rateId: "" } : h)));
+        };
+        const updateRateMeta = (oldId, patch) =>
+          setRates((p) => p.map((r) => (r.projectId === currentProjectId && r.id === oldId ? { ...r, ...patch } : r)));
+        const updateRateId = (oldId, newId) => {
+          if (!newId) return;
+          if (projRates.some((r) => r.id === newId)) return alert("شناسه تکراری است.");
+          setRates((p) => p.map((r) => (r.projectId === currentProjectId && r.id === oldId ? { ...r, id: newId } : r)));
+          setHoles((p) => p.map((h) => (h.projectId === currentProjectId && h.rateId === oldId ? { ...h, rateId: newId } : h)));
+        };
+        const addRateVersion = (rateId) => {
+          if (settings.role !== "admin") return alert("فقط ادمین.");
+          const d = rateDrafts[rateId] || {};
+          const price = Number(d.newPriceJ);
+          const effISO = jalaliToISO(d.newDateJ || todayJalali()) || nowISO();
+          if (!(price >= 0)) return alert("قیمت معتبر نیست.");
+          setRates((p) =>
+            p.map((r) => {
+              if (!(r.projectId === currentProjectId && r.id === rateId)) return r;
+              const versions = [...(r.versions || []), { price, effectiveFrom: effISO }].sort((a, b) =>
+                a.effectiveFrom.localeCompare(b.effectiveFrom)
+              );
+              return { ...r, versions };
+            })
+          );
+          setDraft(rateId, { newPriceJ: "", newDateJ: "" });
+        };
+        const deleteRateVersion = (rateId, effISO) => {
+          if (settings.role !== "admin") return alert("فقط ادمین.");
+          if (!confirm("حذف این نسخه نرخ؟")) return;
+          setRates((p) =>
+            p.map((r) => {
+              if (!(r.projectId === currentProjectId && r.id === rateId)) return r;
+              const versions = (r.versions || []).filter((v) => v.effectiveFrom !== effISO);
+              return { ...r, versions: versions.length ? versions : [{ price: 0, effectiveFrom: minDateISO }] };
+            })
+          );
+        };
+
+        // contractors
+        const addContractor = () => {
+          if (settings.role !== "admin") return alert("فقط ادمین.");
+          if (!currentProjectId) return alert("ابتدا یک پروژه انتخاب کنید.");
+          const id = prompt("شناسه پیمانکار (یکتا در پروژه جاری)", `C-${String(Math.floor(Math.random() * 900) + 100)}`);
+          if (!id) return;
+          if (projContractors.some((c) => c.id === id)) return alert("شناسه پیمانکار تکراری است.");
+          const company = prompt("نام شرکت پیمانکار", "شرکت نمونه");
+          const person = prompt("نام شخص طرف قرارداد", "آقای/خانم نمونه");
+          setContractors([{ id, projectId: currentProjectId, company: company || "بدون عنوان", person: person || "" }, ...contractors]);
+        };
+        const updateContractor = (id, patch) =>
+          setContractors((p) => p.map((c) => (c.projectId === currentProjectId && c.id === id ? { ...c, ...patch } : c)));
+        const removeContractor = (id) => {
+          if (settings.role !== "admin") return alert("فقط ادمین.");
+          if (!confirm("حذف پیمانکار؟")) return;
+          setContractors((p) => p.filter((c) => !(c.projectId === currentProjectId && c.id === id)));
+          setHoles((p) => p.map((h) => (h.projectId === currentProjectId && h.contractorId === id ? { ...h, contractorId: "" } : h)));
+        };
+
+        // CSV (فقط پروژه فعال)
+        const buildCSV = () => {
+          const headers = [
+            "کد نقطه","Swath","نوع نقطه","نوع گروه","نام شرکت","نام پیمانکار","نام گروه","سوپروایزر","فورمن","مکانیک",
+            "نوع چاله","عمق 1","عمق 2","تاریخ حفاری (ش)","شناسه آیتم نرخ","آیتم نرخ","توضیحات","عمق چک‌من","تاریخ کنترل (ش)","مبلغ","ثبت‌کننده",
+          ];
+          const rows = projHoles.map((h) => {
+            const r = rateMap[h.rateId];
+            const c = contractorMap[h.contractorId] || {};
+            const price = r ? calcPricePerPoint(h, r, rateMap) : 0;
+            const depthCheckCSV =
+              (h.pitType === "pattern")
+                ? [(h.depthChecked1 ?? ""), (h.depthChecked2 ?? "")]
+                    .filter((x) => x !== "")
+                    .join("|")
+                : (h.depthChecked1 ?? "");
+            const cells = [
+              h.code, h.swath || "", h.pointType === "rework" ? "دوباره‌کاری" : "نقطه جدید",
+              h.groupType === "contractor" ? "پیمانکاری" : "شرکتی",
+              c.company || h.contractorCompany || "", h.contractorName || "",
+              h.groupType === "company" ? h.groupName || "" : "",
+              h.supervisor || "", h.foreman || "", h.mechanic || "",
+              h.pitType === "pattern" ? "پترن" : "سینگل",
+              h.depth1 ?? "", h.pitType === "pattern" ? h.depth2 ?? "" : "",
+              h.jDateInitial || "", h.rateId || "", r?.name ?? "",
+              (h.notes || "").replaceAll(",", " "),
+              depthCheckCSV, h.jDateChecked || "", price,
+              `${h.createdByName || "—"} (${roleLabel(h.createdByRole || "—")})`,
+            ];
+            return cells.join(",");
+          });
+          return [headers.join(","), ...rows].join("\n");
+        };
+
+        const exportCSV = () => {
+          if (!currentProject) return alert("پروژه‌ای انتخاب نشده است.");
+          const csv = buildCSV();
+          const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+          anchor.href = url;
+          anchor.download = `points_${currentProject.name}_${new Date().toISOString().slice(0, 10)}.csv`;
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          URL.revokeObjectURL(url);
+        };
+
+        // Reset ها
+        const resetProject = () => {
+          if (settings.role !== "admin") return;
+          if (!currentProjectId) return alert("پروژه‌ای انتخاب نشده است.");
+          if (!confirm("بازنشانی داده‌های پروژهٔ جاری؟ (نقاط، پیمانکاران، آیتم‌های نرخ، نام‌ها/پسوردها)")) return;
+
+          setHoles((prev) => prev.filter(h => h.projectId !== currentProjectId));
+          setContractors((prev) => prev.filter(c => c.projectId !== currentProjectId));
+          setRates((prev) => prev.filter(r => r.projectId !== currentProjectId));
+
+          // پاکسازی نام‌ها و پسوردها برای پروژه جاری
+          const ns = normalizeSettings(settings);
+          delete ns.staffByProject[currentProjectId];
+          delete ns.passwordsPerPersonByProject[currentProjectId];
+          delete ns.profilesByProject[currentProjectId];
+          setSettings(ns);
+          alert("پروژه جاری بازنشانی شد (اطلاعات پروژه باقی ماند).");
+        };
+
+        const resetAll = () => {
+          if (settings.role !== "admin") return;
+          if (!confirm("بازنشانی کامل همهٔ داده‌های محلی؟")) return;
+          localStorage.removeItem(LS_KEYS.rates);
+          localStorage.removeItem(LS_KEYS.holes);
+          localStorage.removeItem(LS_KEYS.contractors);
+          localStorage.removeItem(LS_KEYS.settings);
+          localStorage.removeItem(LS_KEYS.projects);
+          location.reload();
+        };
+
+        const TabButton = ({ id, label }) => (
+          <button onClick={() => setTab(id)} style={tab === id ? styles.button : styles.buttonGhost}>
+            {label}
+          </button>
+        );
+
+        
+// === HamburgerMenu ===
+function HamburgerMenu({
+  tab, setTab,
+  isAdmin,
+  onAddProject, onOpenProjects, onResetProject, onResetAll
+}) {
+  const [open, setOpen] = React.useState(false);
+  const close = () => setOpen(false);
+
+  const wrapRef = React.useRef(null);
+  React.useEffect(() => {
+    const onDoc = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("click", onDoc);
+    return () => document.removeEventListener("click", onDoc);
+  }, []);
+
+  const ItemBtn = ({onClick, children}) => (
+    <button
+      style={{ ...styles.buttonGhost, width:"100%", textAlign:"right" }}
+      onClick={() => { onClick?.(); close(); }}
+    >
+      {children}
+    </button>
+  );
+
+  return (
+    <div className="menu-panel" ref={wrapRef}>
+      <button className="hamburger-btn" onClick={() => setOpen(v=>!v)} aria-label="منو">☰</button>
+
+      <div className={`menu-dropdown ${open ? "open" : ""}`} dir="rtl">
+        <div className="menu-section">
+          <div className="menu-section-title">ناوبری</div>
+          <div className="menu-grid">
+            <ItemBtn onClick={() => setTab("dash")}>داشبورد</ItemBtn>
+            <ItemBtn onClick={() => setTab("new")}>ثبت نقطه</ItemBtn>
+            <ItemBtn onClick={() => setTab("check")}>ثبت چک‌من</ItemBtn>
+            <ItemBtn onClick={() => setTab("list")}>لیست نقاط</ItemBtn>
+          </div>
+        </div>
+
+        {isAdmin && (
+          <>
+            <div className="menu-section-title" style={{marginTop:10}}>اقدامات ادمین</div>
+            <div className="menu-grid">
+              <ItemBtn onClick={() => setTab("projects")}>پروژه‌ها</ItemBtn>
+              <ItemBtn onClick={() => setTab("contractors")}>پیمانکاران</ItemBtn>
+              <ItemBtn onClick={() => setTab("staff")}>کاربران</ItemBtn>
+              <ItemBtn onClick={() => setTab("rates")}>قیمت چاله</ItemBtn>
+              <ItemBtn onClick={() => setTab("settings")}>تنظیمات</ItemBtn>
+              <ItemBtn onClick={onResetProject}>♻️ بازنشانی پروژهٔ جاری</ItemBtn>
+              <ItemBtn onClick={onResetAll}>🗑️ بازنشانی کامل</ItemBtn>
+            </div>
+
+            <div className="menu-section-title" style={{marginTop:10}}>صورت وضعیت</div>
+            <div className="menu-grid">
+              <ItemBtn onClick={() => setTab("sv_contractor")}>صورت وضعیت پیمانکار</ItemBtn>
+              <ItemBtn onClick={() => setTab("sv_company")}>صورت وضعیت شرکت</ItemBtn>
+            </div>
+    
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+// Helper: password for person (default admin)
+        const getPersonPassword = (role, name) =>
+          _clean(currentPasswords?.[role]?.[name]) || "admin";
+
+        // ورود با درنظر گرفتن بوت‌استرپ ادمین
+        const doLogin = () => {
+          if (!currentProjectId) return alert("ابتدا یک پروژه را انتخاب کنید.");
+          const role = selectedRoleUI;
+          const name = _clean(loginName);
+          const pass = _clean(loginPass);
+
+          if (!role || role === "viewer") {
+            const ns = normalizeSettings({ ...settings, role: "viewer" });
+            setSettings(ns);
+            setLoginName(""); setLoginPass("");
+            return;
+          }
+
+          const isAdminBootstrap = role === "admin" && !hasStaff("admin");
+
+          let expected;
+          if (isAdminBootstrap) {
+            expected = _clean(settings?.passwords?.admin) || "admin";
+          } else {
+            if (!name) return alert("نام کارشناس را انتخاب/وارد کنید.");
+            expected = getPersonPassword(role, name);
+          }
+
+          if (pass !== expected) return alert("پسورد نادرست است.");
+
+          // profiles را برای پروژه جاری به‌روزرسانی کن
+          const nextProfiles = { ...(settings.profilesByProject[currentProjectId] || {}) };
+          if (!isAdminBootstrap) nextProfiles[role] = name;
+
+          const ns = normalizeSettings({
+            ...settings,
+            role,
+            profilesByProject: {
+              ...settings.profilesByProject,
+              [currentProjectId]: nextProfiles
+            }
+          });
+          setSettings(ns);
+          setLoginName(""); setLoginPass("");
+        };
+
+        // اضافه/ویرایش پروژه
+        const addProject = () => {
+          if (settings.role !== "admin") return alert("فقط ادمین.");
+          const id = prompt("شناسه پروژه (یکتا)", `P-${String(Math.floor(Math.random() * 900) + 100)}`);
+          if (!id) return;
+          if (projects.some(p => p.id === id)) return alert("شناسه پروژه تکراری است.");
+          const name = prompt("نام پروژه", "پروژه جدید") || "پروژه بدون نام";
+          const owner = prompt("کارفرما/مالک", "—") || "—";
+          const contractNo = prompt("شماره قرارداد", "—") || "—";
+          const budget = Number(prompt("بودجه (ریال)", "0") || "0") || 0;
+          const currency = "IRR";
+          const startJ = prompt("تاریخ شروع (شمسی YYYY-MM-DD)", todayJalali()) || todayJalali();
+          const endJ = prompt("تاریخ پایان (شمسی YYYY-MM-DD)", "") || "";
+          const status = "فعال";
+          const notes = "";
+          setProjects([{ id, name, owner, contractNo, budget, currency, startJ, endJ, status, notes }, ...projects]);
+
+          // ساخت ظرف نام‌ها/پسوردها برای پروژه جدید
+          const ns = normalizeSettings(settings);
+          ns.staffByProject[id] = ns.staffByProject[id] || { admin:[], checker:[], drilling:[], planner:[], contractor:[] };
+          ns.passwordsPerPersonByProject[id] = ns.passwordsPerPersonByProject[id] || {};
+          ns.profilesByProject[id] = ns.profilesByProject[id] || {};
+          setSettings(ns);
+        };
+
+        const updateProject = (id, patch) =>
+          setProjects((p) => p.map(pr => pr.id === id ? { ...pr, ...patch } : pr));
+
+        const removeProject = (id) => {
+          if (settings.role !== "admin") return;
+          if (!confirm("حذف پروژه؟ تمام داده‌های مرتبط (نقاط/پیمانکاران/نرخ‌ها/نام‌ها/پسوردها) نیز حذف می‌شوند.")) return;
+          setProjects((p) => p.filter(pr => pr.id !== id));
+          setHoles((p) => p.filter(h => h.projectId !== id));
+          setContractors((p) => p.filter(c => c.projectId !== id));
+          setRates((p) => p.filter(r => r.projectId !== id));
+          const ns = normalizeSettings(settings);
+          delete ns.staffByProject[id];
+          delete ns.passwordsPerPersonByProject[id];
+          delete ns.profilesByProject[id];
+          // اگر پروژه فعال حذف شد
+          if (ns.projectId === id) ns.projectId = projects.find(x=>x.id!==id)?.id || "";
+          setSettings(ns);
+        };
+
+        const setActiveProject = (id) => {
+          const ns = normalizeSettings({ ...settings, projectId: id || "" });
+          setSettings(ns);
+        };
+
+        // UI
+        const projectRequiredBlocker = !currentProjectId;
+
+        return (
+          <div style={styles.app} dir="rtl">
+            <div style={styles.container} className="fullwidth">
+              {toastVisible && (
+                <div className="toast-layer">
+                  <div className="toast-success">{toastText || "ثبت با موفقیت انجام شد"}</div>
+                </div>
+              )}
+        
+              {/* Header */}
+              <div style={styles.headerRow}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, width:"100%" }} className="topbar-fixed">
+  <img src={settings.companyLogoUrl || "https://via.placeholder.com/140x40?text=Company"} alt="Company Logo" style={{ height: 40 }} />
+  <div style={{ marginInlineStart: "auto" }}>
+    <HamburgerMenu
+      tab={tab}
+      setTab={setTab}
+      isAdmin={settings.role === "admin"}
+      onAddProject={addProject}
+      onOpenProjects={() => setTab("projects")}
+      onResetProject={resetProject}
+      onResetAll={resetAll}
+    />
+  </div>
+        <div className="breadcrumb-line" style={{padding:"6px 12px", fontSize:13, color:"#6B7280", borderBottom:"1px solid #E5E7EB"}}>
+          پروژه: {projects.find(p=>p.id===settings.projectId)?.name || settings.projectId} • نقش: {roleLabel(settings.role)}
+        </div>
+        
+    <span style={{display:"inline-flex", gap:6, marginInlineStart: 8}}>
+      {settings.role === "viewer" ? (
+        <>
+          {/* نمایش دکمه‌های ورود/ثبت‌نام برای بیننده حذف شده چون در این نسخه با ورود یکپارچه مدیریت می‌شود */}
+        </>
+      ) : (
+        <>
+          {/* منوی آدمک موجود شما برقرار می‌ماند */}
+          <span style={{ position:"relative", display:"inline-block" }}>
+            <button onClick={()=>setUserMenuOpen(!userMenuOpen)} style={{ ...styles.buttonGhost, padding:"6px 10px" }}>👤</button>
+            {userMenuOpen && (
+              <div style={{ position:"absolute", top:"100%", left:0, background:"#fff", border:"1px solid #E5E7EB", borderRadius:12, padding:8, zIndex:1000 }}>
+                <button onClick={()=>{ setTab("profile"); setUserMenuOpen(false); }} style={styles.buttonGhost}>پروفایل</button>
+          </div>
+            )}
+          </span>
+
+          {/* اگر نقش کاربر ادمین باشد، دکمه بازگشت به انتخاب پنل نمایش داده می‌شود */}
+          {settings.role === "admin" && (
+            <button onClick={goToPanelSelection} style={styles.buttonGhost}>بازگشت به انتخاب پنل</button>
+          )}
+
+          {/* دکمه خروج همیشه در حالت لاگین دیده می‌شود */}
+          <button onClick={doLogout} style={styles.button}>خروج</button>
+        </>
+      )}
+    </span>
+
+
+</div>
+
+                {/* انتخاب پروژه + نقش فعلی + منو */}
+                <div style={styles.controlsRow} className="controls-row">
+                  {/* انتخاب پروژه (قبل از نقش) */}
+                  <div style={{ minWidth: 160, flex: "1 1 0", display: "flex", flexDirection: "column", gap: 6 }} className="field-wrap">
+                    <span style={styles.labelText}>پروژه فعال</span>
+                    <select
+                      style={styles.input}
+                      value={currentProjectId}
+                      onChange={(e) => setActiveProject(e.target.value)}
+                    >
+                      {projects.length === 0 && <option value="">— هیچ پروژه‌ای نیست —</option>}
+                      {projects.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* نقش فعلی و ورود */}
+                  <div style={{ minWidth: 260, flex: "1 1 0", display: "flex", flexDirection: "column", gap: 6 }} className="field-wrap">
+                    <span style={styles.labelText}>نقش فعلی</span>
+                    <select
+                      key={settings.role + selectedRoleUI + currentProjectId}
+                      style={styles.input}
+                      value={selectedRoleUI}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setSelectedRoleUI(v);
+                        if (v === "viewer") {
+                          setSettings({ ...settings, role: "viewer" });
+                        }
+                      }}
+                    >
+                      <option value="viewer">مشاهده‌گر</option>
+                      <option value="contractor">پیمانکار</option>
+                      <option value="checker">بازرس (چک‌من)</option>
+                      <option value="drilling">کارشناس حفاری</option>
+                      <option value="planner">کارشناس برنامه‌ریزی</option>
+                      <option value="admin">ادمین</option>
+                    </select>
+
+                    {/* فرم لاگین زیر نقش */}
+                    {showLoginForRole && (
+                      <div className={`login-form ${requiresNameNow ? "hasName" : ""}`}>
+{requiresNameNow ? (
+                          <>
+                            <select
+                              style={styles.input}
+                              value={loginName}
+                              onChange={(e)=>setLoginName(e.target.value)}
+                            >
+                              <option value="">نام کارشناس…</option>
+                              {(currentStaff[selectedRoleUI] || []).map((n)=>(
+                                <option key={n} value={n}>{n}</option>
+                              ))}
+                            </select>
+                            <div className="pwd-row"><input
+                              style={styles.input}
+                              type="password"
+                              placeholder="پسورد"
+                              value={loginPass}
+                              onChange={(e)=>setLoginPass(e.target.value)}
+                            />
+                            <Button onClick={doLogin}>ورود</Button></div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="pwd-row"><input
+                              style={styles.input}
+                              type="password"
+                              placeholder="پسورد ادمین (اولین ورود)"
+                              value={loginPass}
+                              onChange={(e)=>setLoginPass(e.target.value)}
+                            />
+                            <Button onClick={doLogin}>ورود</Button></div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: 11, color: "#6B7280" }}>
+                      کاربر: {roleDisplayName}  •  پروژه: {currentProject?.name || "—"}
+                    </div>
+                  </div>
+
+                  </div>
               </div>
-            </Card>
 
-            {/* === TABS === */}
-            {tab === 'sv_contractor' && (
-              <Card title="صورت وضعیت پیمانکار" actions={<Badge>پروژه: {currentProject?.name || currentProjectId}</Badge>}>
+              {/* اگر پروژه‌ای انتخاب نشده باشد، فقط تب پروژه‌ها در دسترس است */}
+              {projectRequiredBlocker && tab !== "projects" && (
+                <Card title="هیچ پروژه‌ای انتخاب نشده">
+                  <div style={{ fontSize: 13, color: "#92400E" }}>
+                    لطفاً از بالا یک «پروژه فعال» انتخاب کنید یا در تب «پروژه‌ها» یک پروژه بسازید.
+                  </div>
+                </Card>
+              )}
+
+              {!projectRequiredBlocker && tab === "dash" && (
                 <div style={styles.grid3}>
-                  <Select
-                    label="پیمانکار"
-                    value={svContractorId}
-                    onChange={setSvContractorId}
-                    options={[{value:"", label:"همه پیمانکاران"}, ...projContractors.map(c=>({value:c.id, label:(c.company || c.id)}))]}
+                  <Card title="خلاصه مالی" actions={<Badge tone="blue">پروژه: {currentProject?.name || "—"}</Badge>}>
+                    <Summary rates={projRates} holes={projHoles} contractorMap={contractorMap} />
+                  </Card>
+                  <Card title="قوانین محاسبه">
+                    <ul style={{ paddingRight: 18, lineHeight: 1.9, fontSize: 13 }}>
+                      <li>قیمت هر ردیف = <b>۱</b> × فی واحد (نسخه فعال در تاریخ فعالیت).</li>
+                      <li>عمق فقط برای انتخاب آیتم نرخ (با محدوده عمق) استفاده می‌شود.</li>
+                      <li>فهرست فی واحد <b>نسخه‌دار</b> است؛ هر تغییر با <b>تاریخ اثر (شمسی)</b> ثبت می‌شود و محاسبات قبلی تغییر نمی‌کند.</li>
+                      <li>همه تاریخ‌ها در UI به‌صورت شمسی نمایش/ورود می‌شوند.</li>
+                    </ul>
+                  </Card>
+                  <Card title="راهنما">
+                    <ul style={{ paddingRight: 18, lineHeight: 1.9, fontSize: 13 }}>
+                      <li>پیمانکار: ثبت نقطه با کد، انتخاب پیمانکار، ورود عمق‌ها (برای انتخاب خودکار آیتم).</li>
+                      <li>بازرس (چک‌من): ثبت عمق‌های کنترل و تاریخ کنترل (شمسی).</li>
+                      <li>ادمین: مدیریت پروژه‌ها، قیمت چاله و پیمانکاران + تنظیم پسورد اشخاص (بر مبنای پروژه فعال).</li>
+                    </ul>
+                  </Card>
+                </div>
+              )}
+
+              {tab === "signup" && (
+                <Card title="ثبت نام کاربر">
+                  <div style={styles.grid3}>
+                    <Select label="پروژه" value={signup.projectId} onChange={(v)=>setSignup({...signup, projectId:v})} options={projects.map(p=>({value:p.id,label:p.name}))} />
+                    <Select label="نقش" value={signup.role} onChange={(v)=>setSignup({...signup, role:v})} options={[
+                      {value:"drilling",label:"کارشناس حفاری"},
+                      {value:"checker",label:"بازرس (چک‌من)"},
+                      {value:"planner",label:"کارشناس برنامه‌ریزی"},
+                      {value:"contractor",label:"پیمانکار"},
+                      {value:"admin",label:"ادمین"},
+                    ]} />
+                    <TextInput label="نام" value={signup.firstName} onChange={(v)=>setSignup({...signup, firstName:v})} />
+                    <TextInput label="نام خانوادگی" value={signup.lastName} onChange={(v)=>setSignup({...signup, lastName:v})} />
+                    <TextInput label="کد ملی" value={signup.nationalId} onChange={(v)=>setSignup({...signup, nationalId:v})} />
+                    <TextInput label="شماره پرسنلی" value={signup.personnelNo} onChange={(v)=>setSignup({...signup, personnelNo:v})} />
+                    <TextInput label="شماره موبایل" value={signup.mobile} onChange={(v)=>setSignup({...signup, mobile:v})} />
+                    <TextInput label="پست سازمانی" value={signup.jobTitle} onChange={(v)=>setSignup({...signup, jobTitle:v})} />
+                    <TextInput label="سمت" value={signup.position} onChange={(v)=>setSignup({...signup, position:v})} />
+                    <Select label="نوع اشتغال" value={signup.employmentType} onChange={(v)=>setSignup({...signup, employmentType:v})} options={[{value:"company",label:"شرکتی"},{value:"contractor",label:"پیمانکاری"}]} />
+                    <TextInput label="نام شرکت" value={signup.companyName} onChange={(v)=>setSignup({...signup, companyName:v})} />
+                    <TextInput label="آدرس" value={signup.address} onChange={(v)=>setSignup({...signup, address:v})} />
+                    <TextInput type="password" label="پسورد" value={signup.password} onChange={(v)=>setSignup({...signup, password:v})} />
+                    <TextInput type="password" label="تکرار پسورد" value={signup.confirmPassword} onChange={(v)=>setSignup({...signup, confirmPassword:v})} />
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#374151" }}>
+                      <input type="checkbox" checked={signup.acceptTerms} onChange={(e)=>setSignup({...signup, acceptTerms:e.target.checked})} />
+                      <span>قوانین را می‌پذیرم</span>
+                    </label>
+                  </div>
+                  <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                    <Button onClick={doSignup} disabled={!canSubmitSignup()}>تأیید ثبت نام</Button>
+                    <GhostButton onClick={()=>setTab("login")}>ورود</GhostButton>
+                  </div>
+                </Card>
+              )}
+
+
+              {tab === "login" && (
+                <Card title="ورود (کد ملی)">
+                  <div style={styles.grid3}>
+                    <Select label="پروژه" value={loginProject} onChange={setLoginProject} options={projects.map(p=>({value:p.id,label:p.name}))} />
+              {tab === "profile" && (
+                <Card title="پروفایل من">
+                  <ProfileTextView settings={settings} getUsers={getUsers} updateUserRecord={updateUserRecord} projects={projects} />
+                </Card>
+              )}
+ />
+                    <TextInput label="کد ملی" value={loginNID} onChange={setLoginNID} />
+                    <TextInput type="password" label="پسورد" value={loginPW} onChange={setLoginPW} />
+                  </div>
+                  <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                    <Button onClick={doLoginNID}>ورود</Button>
+                    <GhostButton onClick={()=>setTab("signup")}>ثبت نام</GhostButton>
+                  </div>
+                </Card>
+              )}
+
+
+
+              {!projectRequiredBlocker && tab === "new" && (
+                <Card title="ثبت نقطه (پیمانکار)">
+                  {(settings.role === "viewer" || settings.role === "checker") && (
+                    <div style={{ fontSize: 13, color: "#92400E", marginBottom: 8 }}>
+                      برای ثبت، نقش را به «پیمانکار» یا «ادمین» تغییر دهید.
+                    </div>
+                  )}
+
+                  {editingId && (
+                    <div style={{ marginBottom: 8 }}>
+                      <Badge tone="amber">حالت اصلاح رکورد</Badge>
+                    </div>
+                  )}
+
+                  <div style={styles.grid3}>
+                    {/* ردیف ۱ — Swath قبل از کد */}
+                    <TextInput label="Swath (دامنه)" value={newHole.swath} onChange={(v) => setNewHole({ ...newHole, swath: v })} />
+                    <TextInput label="کد نقطه" value={newHole.code} onChange={(v) => setNewHole({ ...newHole, code: v })} />
+                    <Select
+                      label="نوع نقطه"
+                      value={newHole.pointType}
+                      onChange={(v) => setNewHole({ ...newHole, pointType: v })}
+                      options={[{ value: "new", label: "نقطه جدید" },{ value: "rework", label: "دوباره‌کاری" }]}
+                    />
+
+                    {/* ردیف ۲: نوع گروه → سپس پیمانکار (از لیست) فقط وقتی پیمانکاری است */}
+                    <Select
+                      label="نوع گروه"
+                      value={newHole.groupType}
+                      onChange={(v) => setNewHole({ ...newHole, groupType: v })}
+                      options={[{ value: "company", label: "شرکتی" },{ value: "contractor", label: "پیمانکاری" }]}
+                    />
+                    {newHole.groupType === "contractor" && (
+                      <Select
+                        label="پیمانکار (از لیست)"
+                        value={newHole.contractorId}
+                        onChange={(v) => {
+                          const c = contractorMap[v] || {};
+                          setNewHole({
+                            ...newHole,
+                            contractorId: v,
+                            contractorCompany: c.company || "",
+                            contractorName: c.person || "",
+                          });
+                        }}
+                        options={projContractors.map((c) => ({ value: c.id, label: `${c.company} — ${c.person}` }))}
+                        disabled={projContractors.length === 0}
+                      />
+                    )}
+                    {newHole.groupType === "contractor" ? (
+                      <>
+                        <TextInput label="نام شرکت" value={newHole.contractorCompany} onChange={(v) => setNewHole({ ...newHole, contractorCompany: v })} readOnly />
+                        <TextInput label="نام پیمانکار (طرف قرارداد)" value={newHole.contractorName} onChange={(v) => setNewHole({ ...newHole, contractorName: v })} />
+                      </>
+                    ) : (
+                      <TextInput label="نام گروه" value={newHole.groupName} onChange={(v) => setNewHole({ ...newHole, groupName: v })} />
+                    )}
+
+                    {/* ردیف ۳: عوامل */}
+                    <TextInput label="سوپروایزر" value={newHole.supervisor} onChange={(v) => setNewHole({ ...newHole, supervisor: v })} />
+                    <TextInput label="فورمن" value={newHole.foreman} onChange={(v) => setNewHole({ ...newHole, foreman: v })} />
+                    <TextInput label="مکانیک" value={newHole.mechanic} onChange={(v) => setNewHole({ ...newHole, mechanic: v })} />
+
+                    {/* ردیف ۴: نوع چاله + عمق‌ها */}
+                    <Select
+                      label="نوع چاله"
+                      value={newHole.pitType}
+                      onChange={(v) => setNewHole({ ...newHole, pitType: v })}
+                      options={[{ value: "single", label: "سینگل" },{ value: "pattern", label: "پترن" }]}
+                    />
+                    <TextInput type="number" label="عمق چاله 1 (متر)" value={newHole.depth1}
+                      onChange={(v) => setNewHole({ ...newHole, depth1: v === "" ? "" : Number(v) })}/>
+                    {newHole.pitType === "pattern" && (
+                      <TextInput type="number" label="عمق چاله 2 (متر)" value={newHole.depth2}
+                        onChange={(v) => setNewHole({ ...newHole, depth2: v === "" ? "" : Number(v) })}/>
+                    )}
+
+                    {/* ردیف ۵: تاریخ + نرخ‌ها + توضیحات */}
+                    <TextInput label="تاریخ حفاری (شمسی)" value={newHole.jDateInitial}
+                      onChange={(v) => setNewHole({ ...newHole, jDateInitial: v })} placeholder="YYYY-MM-DD (مثلاً 1404-07-12)" />
+                    <TextInput label="شناسه آیتم نرخ (اختیاری)" value={newHole.rateIdText}
+                      onChange={(v) => { const r = rateMap[v]; setNewHole({ ...newHole, rateIdText: v, rateId: r ? r.id : "" }); }}
+                      placeholder="مثلاً R-001" />
+                    <Select
+                      label="آیتم نرخ (اختیاری)"
+                      value={newHole.rateId}
+                      onChange={(v) => setNewHole({ ...newHole, rateId: v, rateIdText: v })}
+                      options={projRates.map((r) => {
+                        const ver = resolvePriceAtDate(r, nowISO(), rateMap);
+                        const range = r.pitType === "pattern" ? `پترن ← ${r.refId || "—"}` : `${r.depthFrom ?? "—"} تا ${r.depthTo ?? "∞"} m`;
+                        return { value: r.id, label: `${r.name} (${range}) — ${toFa(ver)} ریال/${r.unit}` };
+                      })}
+                      disabled={projRates.length === 0}
+                    />
+                    <TextInput label="توضیحات" value={newHole.notes} onChange={(v) => setNewHole({ ...newHole, notes: v })} />
+                  </div>
+                  <Divider />
+                  <div style={{ ...styles.row, justifyContent: "space-between" }}>
+                    <div style={{ fontSize: 13, color: "#4B5563" }}>
+                      مبلغ این نقطه:
+                      <b>
+                        {(() => {
+                          const depthBasis =
+                            newHole.pitType === "pattern"
+                              ? Math.max(Number(newHole.depth1 || 0), Number(newHole.depth2 || 0))
+                              : Number(newHole.depth1 || 0);
+                          const auto = matchRateByDepth(projRates, depthBasis);
+                          const id = newHole.rateId || newHole.rateIdText || auto?.id;
+                          const rate = id ? rateMap[id] : undefined;
+                          const tmp = { dateInitial: jalaliToISO(newHole.jDateInitial) || nowISO() };
+                          return rate ? toFa(calcPricePerPoint(tmp, rate, rateMap)) : "0";
+                        })()}
+                      </b>{" "}
+                      ریال
+                    </div>
+                    <Button onClick={addHole}>{editingId ? "ذخیره اصلاحات" : "ثبت نقطه"}</Button>
+                  </div>
+                </Card>
+              )}
+
+              {!projectRequiredBlocker && tab === "check" && (
+                <Card title="ثبت عمق چک‌من (بازرس)">
+                  {!canUseCheck && (
+                    <div style={{ fontSize: 13, color: "#92400E", marginBottom: 8 }}>
+                      این تب فقط برای نقش‌های «بازرس (چک‌من)» و «ادمین» فعال است.
+                    </div>
+                  )}
+
+                  {/* ردیف اصلی: کد نقطه + نوع چاله + عمق۱ + تاریخ + (عمق۲ در پترن) */}
+                  <div style={styles.grid3}>
+                    <TextInput label="کد نقطه" value={queryCode} onChange={setQueryCode} disabled={!canUseCheck} />
+                    <Select
+                      label="نوع چاله"
+                      value={selectedPitType}
+                      onChange={setSelectedPitType}
+                      options={[{ value: "single", label: "سینگل" },{ value: "pattern", label: "پترن" }]}
+                      disabled={!canUseCheck}
+                    />
+                    <TextInput type="number" label="عمق چک‌من 1 (متر)" value={checkDepth1} onChange={setCheckDepth1} disabled={!canUseCheck} />
+                    <TextInput label="تاریخ کنترل (شمسی)" value={checkJDate} onChange={setCheckJDate} placeholder="YYYY-MM-DD" disabled={!canUseCheck} />
+                    {selectedPitType === "pattern" && (
+                      <TextInput type="number" label="عمق چک‌من 2 (متر)" value={checkDepth2} onChange={setCheckDepth2} disabled={!canUseCheck} />
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", marginTop: 8 }}>
+                    <Button onClick={applyCheck} disabled={!canUseCheck}>ثبت چک‌من</Button>
+                  </div>
+
+                  <div style={{ height: 12 }} />
+
+                  {queryCode && (
+                    <HolePreview
+                      code={queryCode}
+                      holes={projHoles}
+                      rates={projRates}
+                      rateMap={rateMap}
+                      contractorMap={contractorMap}
+                      onClearCheck={clearCheck}
+                      canClear={canUseCheck}
+                    />
+                  )}
+                </Card>
+              )}
+
+              {!projectRequiredBlocker && tab === "list" && (
+                <Card
+                  title="لیست نقاط (ستون‌ها به ترتیب فرم)"
+                  actions={
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {/* دکمه خروجی CSV برای همه نقش‌ها */}
+                      <GhostButton onClick={exportCSV}>خروجی CSV</GhostButton>
+
+                      {/* دکمه درون‌ریزی فقط برای ادمین */}
+                      {settings.role === "admin" && (
+                        <GhostButton
+                          onClick={() => {
+                            const input = document.createElement("input");
+                            input.type = "file";
+                            input.accept = ".csv";
+                            input.onchange = async (e) => {
+                              const file = e.target.files[0];
+                              if (!file) return;
+
+                              const text = await file.text();
+                              const rows = text.trim().split(/\r?\n/).map((r) => r.split(","));
+                              const headers = rows.shift();
+                              if (!headers || headers.length < 5) {
+                                alert("ساختار CSV نامعتبر است.");
+                                return;
+                              }
+
+                              const newHoles = [];
+                              for (const row of rows) {
+                                const [
+                                  code,
+                                  swath,
+                                  pointType,
+                                  groupType,
+                                  company,
+                                  contractorName,
+                                  groupName,
+                                  supervisor,
+                                  foreman,
+                                  mechanic,
+                                  pitType,
+                                  depth1,
+                                  depth2,
+                                  jDateInitial,
+                                  rateId,
+                                  rateName,
+                                  notes,
+                                ] = row.map((c) => c.trim());
+
+                                if (!code) continue;
+                                const id = uuid();
+                                const dateISO = jalaliToISO(jDateInitial) || nowISO();
+
+                                newHoles.push({
+                                  id,
+                                  projectId: currentProjectId,
+                                  code,
+                                  swath,
+                                  pointType: pointType === "دوباره‌کاری" ? "rework" : "new",
+                                  groupType:
+                                    groupType === "پیمانکاری" ? "contractor" : "company",
+                                  contractorId: "",
+                                  contractorCompany: company,
+                                  contractorName,
+                                  groupName,
+                                  supervisor,
+                                  foreman,
+                                  mechanic,
+                                  pitType: pitType === "پترن" ? "pattern" : "single",
+                                  depth1: depth1 ? Number(depth1) : null,
+                                  depth2: depth2 ? Number(depth2) : null,
+                                  jDateInitial,
+                                  dateInitial: dateISO,
+                                  rateId,
+                                  notes,
+                                  createdByRole: settings.role,
+                                  createdByName: roleDisplayName,
+                                  history: [
+                                    {
+                                      ts: new Date().toISOString(),
+                                      by: roleDisplayName,
+                                      action: "درون‌ریزی از CSV",
+                                    },
+                                  ],
+                                });
+                              }
+
+                              if (newHoles.length === 0) {
+                                alert("هیچ ردیفی در فایل یافت نشد.");
+                                return;
+                              }
+
+                              const dupes = projHoles.filter((h) =>
+                                newHoles.some((n) => n.code === h.code)
+                              );
+                              let merge = true;
+                              if (dupes.length > 0) {
+                                merge = confirm(
+                                  `در فایل ${dupes.length} کد تکراری وجود دارد. آیا مایلید رکوردهای تکراری جایگزین شوند؟`
+                                );
+                              }
+
+                              setHoles((prev) => {
+                                const filtered = merge
+                                  ? prev.filter(
+                                      (h) => !newHoles.some((n) => n.code === h.code)
+                                    )
+                                  : prev;
+                                return [...newHoles, ...filtered];
+                              });
+
+                              alert(
+                                `✅ ${newHoles.length} نقطه با موفقیت در پروژه فعال اضافه شد.`
+                              );
+                            };
+                            input.click();
+                          }}
+                        >
+                          📥 درون‌ریزی از CSV
+                        </GhostButton>
+                      )}
+                    </div>
+                  }
+                >
+                  <HolesTable
+                    holes={projHoles}
+                    rateMap={rateMap}
+                    contractorMap={contractorMap}
+                    onClearCheck={clearCheck}
+                    canClear={settings.role === "checker" || settings.role === "admin"}
+                    onEditRow={beginEdit}
+                    onDeleteRow={deleteHole}
                   />
-                  <TextInput label="از تاریخ (جلالی)" value={svJStart} onChange={setSvJStart} placeholder="YYYY-MM-DD" />
-                  <TextInput label="تا تاریخ (جلالی)" value={svJEnd} onChange={setSvJEnd} placeholder="YYYY-MM-DD" />
-                </div>
+                </Card>
+              )}
 
-                <div style={{display:'flex', gap:16, alignItems:'center', marginTop:10}}>
-                  <label style={{display:'flex', alignItems:'center', gap:6}}>
-                    <input type="checkbox" checked={svCheckedOnly} onChange={(e)=>{ setSvCheckedOnly(e.target.checked); if (e.target.checked) setSvAllPoints(false); }} />
-                    نقاط چِک‌مِنی شده
-                  </label>
-                  <label style={{display:'flex', alignItems:'center', gap:6}}>
-                    <input type="checkbox" checked={svAllPoints} onChange={(e)=>{ setSvAllPoints(e.target.checked); if (e.target.checked) setSvCheckedOnly(false); }} />
-                    همه نقاط (فاقد چک‌من)
-                  </label>
-                </div>
 
-                <div className="status-table">
-                  <div style={{overflowX:'auto'}}>
-                    <table style={{...styles.table, minWidth: 720}}>
+              {!projectRequiredBlocker && tab === "rates" && (
+                <Card title="قیمت چاله (ادمین)">
+                  {settings.role !== "admin" ? (
+                    <div style={{ fontSize: 13, color: "#92400E", marginBottom: 8 }}>
+                      ویرایش قیمت‌ها فقط برای «ادمین» مجاز است.
+                    </div>
+                  ) : (
+                    <div style={{ ...styles.row, gap: 8, marginBottom: 10 }}>
+                      <Button onClick={addRate}>افزودن آیتم</Button>
+                      <Badge tone="amber">تاریخ اثر: شمسی</Badge>
+                    </div>
+                  )}
+                  <div style={{ display: "grid", gap: 12 }}>
+                    {projRates.map((r) => {
+                      const current = resolvePriceAtDate(r, nowISO(), rateMap);
+                      const draft = rateDrafts[r.id] || {};
+                      return (
+                        <div key={r.id} style={{ ...styles.card, padding: 12 }}>
+                          <div style={styles.grid3}>
+                            <TextInput label="شناسه" value={r.id} onChange={(v) => settings.role === "admin" && updateRateId(r.id, String(v))} />
+                            <TextInput label="عنوان" value={r.name} onChange={(v) => settings.role === "admin" && updateRateMeta(r.id, { name: v })} />
+                            <Select
+                              label="نوع چاله"
+                              value={r.pitType || "single"}
+                              onChange={(v) =>
+                                settings.role === "admin" &&
+                                updateRateMeta(r.id, {
+                                  pitType: v,
+                                  depthFrom: v === "pattern" ? null : r.depthFrom,
+                                  depthTo:   v === "pattern" ? null : r.depthTo,
+                                  refId:     v === "pattern" ? (r.refId || "") : null,
+                                })
+                              }
+                              options={[{ value: "single", label: "سینگل" },{ value: "pattern", label: "پترن" }]}
+                            />
+
+                            {/* فقط برای سینگل: یک فیلد «عمق (m)» به‌عنوان سقف بازه */}
+                            {r.pitType === "single" && (
+                              <TextInput
+                                type="number"
+                                label="عمق (m)"
+                                value={r.depthTo ?? ""}
+                                onChange={(v) => settings.role === "admin" && updateRateMeta(r.id, { depthTo: v === "" ? null : Number(v) })}
+                              />
+                            )}
+
+                            {/* فقط برای پترن: فقط ارجاع به شناسه */}
+                            {r.pitType === "pattern" && (
+                              <TextInput
+                                label="ارجاع به شناسه (برای قیمت پترن)"
+                                value={r.refId ?? ""}
+                                onChange={(v) => settings.role === "admin" && updateRateMeta(r.id, { refId: v || null })}
+                                placeholder="مثلاً R-001"
+                              />
+                            )}
+
+                            <div>
+                              <div style={{ ...styles.labelText, marginBottom: 6 }}>فی فعال امروز</div>
+                              <div style={{ ...styles.input, background: "#F9FAFB" }}>{toFa(current)} ریال/{r.unit}</div>
+                            </div>
+                            <div style={{ ...styles.labelText, alignSelf: "end" }}>
+                              {r.pitType === "pattern"
+                                ? "قیمت این آیتم از شناسه مرجع خوانده می‌شود."
+                                : "عمقِ این آیتم به‌صورت «تا ... متر» در نظر گرفته می‌شود."}
+                            </div>
+                          </div>
+
+                          <div style={styles.grid3}>
+                            <TextInput type="number" label="قیمت جدید (ریال/نقطه)" value={draft.newPriceJ ?? ""} onChange={(v) => setDraft(r.id, { newPriceJ: v })} />
+                            <TextInput label="تاریخ اثر (شمسی)" value={draft.newDateJ ?? ""} onChange={(v) => setDraft(r.id, { newDateJ: v })} placeholder="YYYY-MM-DD" />
+                            {settings.role === "admin" && (
+                              <div style={{ display: "flex", alignItems: "end" }}>
+                                <Button onClick={() => addRateVersion(r.id)}>افزودن نسخه نرخ</Button>
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
+                            <div style={{ ...styles.labelText, marginBottom: 6 }}>نسخه‌ها (قدیمی → جدید)</div>
+                            <div style={styles.tableWrap}>
+                              
+                              <table style={styles.table}>
+                                <thead>
+                                  <tr>
+                                    <th style={styles.th}>تاریخ اثر (شمسی)</th>
+                                    <th style={styles.th}>قیمت (ریال/نقطه)</th>
+                                    <th style={styles.th}></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {[...r.versions].sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)).map((v, i) => (
+                                    <tr key={i}>
+                                      <td style={styles.td}>{isoToJalali(v.effectiveFrom)}</td>
+                                      <td style={styles.td}>{toFa(v.price)}</td>
+                                      <td style={{ ...styles.td, textAlign: "left" }}>
+                                        {settings.role === "admin" && (
+                                          <button onClick={() => removeRateVersion(r.id, v.effectiveFrom)} style={{ ...styles.buttonGhost, padding: "4px 8px" }}>
+                                            حذف نسخه
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+
+                            </div>
+                          </div>
+
+                          {settings.role === "admin" && (
+                            <div style={{ ...styles.row, gap: 8 }}>
+                              <GhostButton onClick={() => removeRate(r.id)}>حذف آیتم</GhostButton>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {projRates.length === 0 && <div style={{ fontSize: 13, color: "#6B7280" }}>هیچ آیتمی برای این پروژه ثبت نشده است.</div>}
+                  </div>
+                </Card>
+              )}
+
+              {!projectRequiredBlocker && tab === "contractors" && (
+                <Card title="پیمانکاران (ادمین)">
+                  {settings.role !== "admin" ? (
+                    <div style={{ fontSize: 13, color: "#92400E", marginBottom: 8 }}>مدیریت پیمانکاران فقط برای «ادمین» مجاز است.</div>
+                  ) : (
+                    <div style={{ marginBottom: 10 }}>
+                      <Button onClick={addContractor}>افزودن پیمانکار</Button>
+                    </div>
+                  )}
+                  <div style={{ display: "grid", gap: 12 }}>
+                    {projContractors.map((c) => (
+                      <div
+                        key={c.id}
+                        style={{
+                          ...styles.card,
+                          display: "grid",
+                          gap: 12,
+                          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                          alignItems: "end",
+                        }}
+                      >
+                        <TextInput label="شناسه" value={c.id} onChange={(v) => settings.role === "admin" && updateContractor(c.id, { id: v })} />
+                        <TextInput label="نام شرکت" value={c.company} onChange={(v) => settings.role === "admin" && updateContractor(c.id, { company: v })} />
+                        <TextInput label="شخص طرف قرارداد" value={c.person} onChange={(v) => settings.role === "admin" && updateContractor(c.id, { person: v })} />
+                        {settings.role === "admin" && (
+                          <div style={{ textAlign: "left" }}>
+                            <GhostButton onClick={() => removeContractor(c.id)}>حذف</GhostButton>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {projContractors.length === 0 && <div style={{ fontSize: 13, color: "#6B7280" }}>هیچ پیمانکاری برای این پروژه ثبت نشده است.</div>}
+                  </div>
+                </Card>
+              )}
+
+              
+              
+              
+              {!projectRequiredBlocker && tab === "staff" && (
+                <Card title="کاربران ثبت‌نام‌شده">
+                  <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:8, flexWrap:"wrap" }}>
+                    <TextInput label="جستجو" value={usersQuery} onChange={setUsersQuery} />
+                    <Button onClick={()=>exportUsersCSV()}>خروجی CSV</Button>
+                    <label style={{ ...styles.buttonGhost, cursor:"pointer" }}>
+                      <input type="file" accept=".csv" style={{ display:"none" }} onChange={(e)=>importUsersCSV(settings.projectId, e.target.files?.[0])} />
+                      بارگذاری CSV
+                    </label>
+                  </div>
+                  <div style={styles.tableWrap}>
+                    <table style={styles.table}>
                       <thead>
                         <tr>
-                          <th style={styles.th}>ردیف</th>
-                          <th style={styles.th}>شرح</th>
-                          <th style={styles.th}>واحد</th>
-                          <th style={styles.th}>تعداد چاله</th>
-                          <th style={styles.th}>قیمت واحد</th>
-                          <th style={styles.th}>مبلغ این دوره</th>
+                          <th style={styles.th}>پروژه</th>
+                          <th style={styles.th}>نقش</th>
+                          <th style={styles.th}>نام</th>
+                          <th style={styles.th}>نام خانوادگی</th>
+                          <th style={styles.th}>کد ملی</th>
+                          <th style={styles.th}>شماره پرسنلی</th>
+                          <th style={styles.th}>موبایل</th>
+                          <th style={styles.th}>پست سازمانی</th>
+                          <th style={styles.th}>سمت</th>
+                          <th style={styles.th}>نوع اشتغال</th>
+                          <th style={styles.th}>نام شرکت</th>
+                          <th style={styles.th}>آدرس</th>
+                          <th style={styles.th}>پسورد</th>
+                          <th style={styles.th}></th>
                         </tr>
                       </thead>
                       <tbody>
-                        {svRows.length === 0 ? (
-                          <tr>
-                            <td colSpan="6" style={{textAlign:'center', padding:12, color:'#6B7280'}}>— موردی برای نمایش نیست —</td>
+                        {getUsers(settings.projectId).filter(u => {
+                          const q = (usersQuery||"").trim();
+                          if (!q) return true;
+                          const hay = [u.firstName,u.lastName,u.nationalId,u.mobile,u.companyName,u.role,u.personnelNo,u.jobTitle,u.position,u.employmentType,u.address].join(" ");
+                          return hay.includes(q);
+                        }).map(u => (
+                          <tr key={u.id}>
+                            <td style={styles.td}>{projects.find(p=>p.id===u.projectId)?.name || u.projectId}</td>
+                            <td style={styles.td}>{roleLabel(u.role)}</td>
+                            <td style={styles.td}>{u.firstName}</td>
+                            <td style={styles.td}>{u.lastName}</td>
+                            <td style={styles.td}>{u.nationalId}</td>
+                            <td style={styles.td}>{u.personnelNo}</td>
+                            <td style={styles.td}>{u.mobile}</td>
+                            <td style={styles.td}>{u.jobTitle}</td>
+                            <td style={styles.td}>{u.position}</td>
+                            <td style={styles.td}>{u.employmentType==="company"?"شرکتی":"پیمانکاری"}</td>
+                            <td style={styles.td}>{u.companyName}</td>
+                            <td style={styles.td}>{u.address}</td>
+                            <td style={styles.td}>••••</td>
+                            <td style={{...styles.td, textAlign:"left", whiteSpace:"nowrap"}}>
+                              {settings.role === "admin" && (<>
+                                <button onClick={()=>setEditingUser(u)} style={{ ...styles.buttonGhost, padding:"4px 8px", marginInlineEnd:6 }}>اصلاح</button>
+                                <button onClick={()=>deleteUserRecord(settings.projectId, u.id)} style={{ ...styles.buttonGhost, padding:"4px 8px" }}>حذف</button>
+                              </>)}
+                            </td>
                           </tr>
-                        ) : (
-                          svRows.map((r, i) => (
-                            <tr key={r.title}>
-                              <td style={styles.td}>{toFa(i+1)}</td>
-                              <td style={styles.td}>{r.title}</td>
-                              <td style={styles.td}>نقطه</td>
-                              <td style={styles.td}>{toFa(r.count)}</td>
-                              <td style={styles.td}>{toFa(r.unitPrice)}</td>
-                              <td style={styles.td}>{toFa(r.total)}</td>
-                            </tr>
-                          ))
-                        )}
+                        ))}
                       </tbody>
                     </table>
                   </div>
-                </div>
-              </Card>
-            )}
 
-            {tab === 'sv_company' && (
-              <Card title="صورت وضعیت شرکت">
-                <div style={{padding:12}}>در حال ساخت…</div>
-              </Card>
+                  {editingUser && (
+                    <div style={{ marginTop:12 }}>
+                      <Card title={"اصلاح کاربر: " + (editingUser.firstName + " " + editingUser.lastName)}>
+                        <div style={styles.grid3}>
+                          <Select label="پروژه" value={editingUser.projectId} onChange={(v)=>setEditingUser({...editingUser, projectId:v})} options={projects.map(p=>({value:p.id,label:p.name}))} />
+                          <Select label="نقش" value={editingUser.role} onChange={(v)=>setEditingUser({...editingUser, role:v})} options={[
+                            {value:"drilling",label:"کارشناس حفاری"},
+                            {value:"checker",label:"بازرس (چک‌من)"},
+                            {value:"planner",label:"کارشناس برنامه‌ریزی"},
+                            {value:"contractor",label:"پیمانکار"},
+                            {value:"admin",label:"ادمین"},
+                          ]} />
+                          <TextInput label="نام" value={editingUser.firstName} onChange={(v)=>setEditingUser({...editingUser, firstName:v})} />
+                          <TextInput label="نام خانوادگی" value={editingUser.lastName} onChange={(v)=>setEditingUser({...editingUser, lastName:v})} />
+                          <TextInput label="کد ملی" value={editingUser.nationalId} onChange={(v)=>setEditingUser({...editingUser, nationalId:v})} />
+                          <TextInput label="شماره پرسنلی" value={editingUser.personnelNo} onChange={(v)=>setEditingUser({...editingUser, personnelNo:v})} />
+                          <TextInput label="شماره موبایل" value={editingUser.mobile} onChange={(v)=>setEditingUser({...editingUser, mobile:v})} />
+                          <TextInput label="پست سازمانی" value={editingUser.jobTitle} onChange={(v)=>setEditingUser({...editingUser, jobTitle:v})} />
+                          <TextInput label="سمت" value={editingUser.position} onChange={(v)=>setEditingUser({...editingUser, position:v})} />
+                          <Select label="نوع اشتغال" value={editingUser.employmentType} onChange={(v)=>setEditingUser({...editingUser, employmentType:v})} options={[{value:"company",label:"شرکتی"},{value:"contractor",label:"پیمانکاری"}]} />
+                          <TextInput label="نام شرکت" value={editingUser.companyName} onChange={(v)=>setEditingUser({...editingUser, companyName:v})} />
+                          <TextInput label="آدرس" value={editingUser.address} onChange={(v)=>setEditingUser({...editingUser, address:v})} />
+                          {settings.role === "admin" && (
+                            <TextInput type="password" label="پسورد جدید (فقط ادمین)" value={adminNewPw} onChange={setAdminNewPw} />
+                          )}
+                        </div>
+                        <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                          <Button onClick={()=>{ const patch={...editingUser}; if(adminNewPw){patch.password=adminNewPw;} updateUserRecord(editingUser.projectId, editingUser.id, patch); setAdminNewPw(""); setEditingUser(null); }}>ذخیره</Button>
+                          <GhostButton onClick={()=>setEditingUser(null)}>انصراف</GhostButton>
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+                </Card>
+              )}
+{!projectRequiredBlocker && tab === "settings" && settings.role === "admin" && (
+                <Card title="تنظیمات امنیتی (پسوردِ هر شخص — پروژه‌ای)" actions={<Badge tone="amber">پروژه: {currentProject?.name || "—"}</Badge>}>
+                  <SettingsPanel
+                    projectId={currentProjectId}
+                    settings={settings}
+                    onUpdate={setSettings}
+                  />
+                </Card>
+              )}
+
+              {tab === "projects" && settings.role === "admin" && (
+                <Card title="پروژه‌ها (ادمین)">
+                  <div style={{ marginBottom: 10, display:"flex", gap:8, flexWrap:"wrap" }}>
+                    <Button onClick={addProject}>افزودن پروژه</Button>
+                  </div>
+
+                  <div style={{ display:"grid", gap:12 }}>
+                    {projects.map(p => (
+                      <div key={p.id} style={{ ...styles.card, padding: 12, display:"grid", gap:12, gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))" }}>
+                        <TextInput label="شناسه" value={p.id} onChange={(v)=>updateProject(p.id, { id: v })} />
+                        <TextInput label="نام پروژه" value={p.name} onChange={(v)=>updateProject(p.id, { name: v })} />
+                        <TextInput label="کارفرما/مالک" value={p.owner || ""} onChange={(v)=>updateProject(p.id, { owner: v })} />
+                        <TextInput label="شماره قرارداد" value={p.contractNo || ""} onChange={(v)=>updateProject(p.id, { contractNo: v })} />
+                        <TextInput type="number" label="بودجه (ریال)" value={p.budget ?? 0} onChange={(v)=>updateProject(p.id, { budget: v === "" ? 0 : Number(v) })} />
+                        <TextInput label="واحد پول" value={p.currency || "IRR"} onChange={(v)=>updateProject(p.id, { currency: v || "IRR" })} />
+                        <TextInput label="تاریخ شروع (ش)" value={p.startJ || ""} onChange={(v)=>updateProject(p.id, { startJ: v })} placeholder="YYYY-MM-DD" />
+                        <TextInput label="تاریخ پایان (ش)" value={p.endJ || ""} onChange={(v)=>updateProject(p.id, { endJ: v })} placeholder="YYYY-MM-DD" />
+                        <TextInput label="وضعیت" value={p.status || "فعال"} onChange={(v)=>updateProject(p.id, { status: v })} />
+                        <TextInput label="توضیحات" value={p.notes || ""} onChange={(v)=>updateProject(p.id, { notes: v })} />
+                        <div style={{ display:"flex", gap:8, alignItems:"end" }}>
+                          <GhostButton onClick={()=>setActiveProject(p.id)} disabled={settings.projectId === p.id}>انتخاب به‌عنوان پروژه فعال</GhostButton>
+                          <GhostButton onClick={()=>removeProject(p.id)}>حذف پروژه</GhostButton>
+                        </div>
+                      </div>
+                    ))}
+                    {projects.length === 0 && <div style={{ fontSize: 13, color: "#6B7280" }}>هیچ پروژه‌ای ثبت نشده است.</div>}
+                  </div>
+                </Card>
+              )}
+
+              <footer style={styles.footer}>
+                © {new Date().getFullYear()} Swiny — Prototype v5 | داده‌ها فقط روی مرورگر شما ذخیره می‌شوند.
+              </footer>
+            </div>
+          </div>
+        );
+      }
+
+      // =====================
+      // Subsections
+      // =====================
+      function Summary({ holes, rates, contractorMap }) {
+        const rateMap = useMemo(() => Object.fromEntries(rates.map((r) => [r.id, r])), [rates]);
+        const totals = useMemo(
+          () =>
+            holes.reduce(
+              (acc, h) => {
+                const r = rateMap[h.rateId];
+                const price = r ? calcPricePerPoint(h, r, rateMap) : 0;
+                acc.points += 1;
+                acc.amount += price;
+                return acc;
+              },
+              { points: 0, amount: 0 }
+            ),
+          [holes, rateMap]
+        );
+        const last3 = holes.slice(0, 3);
+        return (
+          <div style={{ display: "grid", gap: 12 }}>
+            <div style={styles.grid2}>
+              <div style={{ ...styles.card, padding: 12 }}>
+                <div style={styles.labelText}>تعداد نقاط</div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{toFa(totals.points)} نقطه</div>
+              </div>
+              <div style={{ ...styles.card, padding: 12 }}>
+                <div style={styles.labelText}>جمع مبلغ</div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{toFa(totals.amount)} ریال</div>
+              </div>
+            </div>
+            <Divider />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>آخرین ثبت‌ها</div>
+              <div style={{ display: "grid", gap: 8 }}>
+                {last3.map((h) => (
+                  <div key={h.id} style={{ ...styles.card, padding: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <Badge tone={h.depthChecked1 != null || h.depthChecked2 != null ? "green" : "gray"}>
+                        {h.depthChecked1 != null || h.depthChecked2 != null ? "چک‌من" : "اولیه"}
+                      </Badge>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{h.code}</div>
+                      <div style={{ fontSize: 12, color: "#6B7280" }}>{contractorMap[h.contractorId]?.company || h.contractorCompany || "—"}</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#4B5563" }}>
+                      {h.dateInitial ? isoToJalali(h.dateInitial) : "—"} • {toFa(rateMap[h.rateId] ? calcPricePerPoint(h, rateMap[h.rateId], rateMap) : 0)} ریال
+                    </div>
+                  </div>
+                ))}
+                {last3.length === 0 && <div style={{ fontSize: 12, color: "#6B7280" }}>موردی ثبت نشده.</div>}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      function HolePreview({ code, holes, rates, rateMap, contractorMap, onClearCheck, canClear }) {
+        const h = holes.find((x) => x.code === code);
+        if (!h) return <div style={{ fontSize: 13, color: "#6B7280", marginTop: 8 }}>نقطه‌ای با این کد موجود نیست.</div>;
+        const r = rateMap[h.rateId];
+        const asOf = h?.dateChecked || h?.dateInitial || nowISO();
+        const verPrice = r ? resolvePriceAtDate(r, asOf, rateMap) : 0;
+        const price = r ? calcPricePerPoint(h, r, rateMap) : 0;
+
+        const checkedBasis = (() => {
+          const d1 = h.depthChecked1;
+          const d2 = h.depthChecked2;
+          if (d1 == null && d2 == null) return null;
+          if (d1 != null && d2 != null) return Math.max(d1, d2);
+          return (d1 ?? d2);
+        })();
+        const rateByCheck = checkedBasis != null ? matchRateByDepth(Object.values(rateMap), checkedBasis) : null;
+        const newPriceByCheck = rateByCheck ? resolvePriceAtDate(rateByCheck, h.dateChecked || asOf, rateMap) : null;
+
+        const showTwoChecks = h.pitType === "pattern" || h.depthChecked2 != null;
+
+        return (
+          <div style={{ ...styles.card, background: "#F9FAFB" }}>
+            <div style={{ ...styles.row, justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{h.code}</div>
+                <Badge tone={h.depthChecked1 != null || h.depthChecked2 != null ? "green" : "gray"}>
+                  {h.depthChecked1 != null || h.depthChecked2 != null ? "چک‌من" : "اولیه"}
+                </Badge>
+              </div>
+            </div>
+
+            <div style={styles.grid3}>
+              {/* گروه */}
+              <div style={{ ...styles.card, padding: 8 }}>
+                <div style={styles.labelText}>گروه</div>
+                {h.groupType === "contractor" ? (
+                  <>
+                    <div style={{ fontWeight: 700 }}>{contractorMap[h.contractorId]?.company || h.contractorCompany || "—"}</div>
+                    <div style={{ fontSize: 11, color: "#6B7280" }}>{contractorMap[h.contractorId]?.person || h.contractorName || ""}</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontWeight: 700 }}>شرکتی</div>
+                    <div style={{ fontSize: 11, color: "#6B7280" }}>{h.groupName || "—"}</div>
+                  </>
+                )}
+              </div>
+
+              {/* آیتم نرخ */}
+              <div style={{ ...styles.card, padding: 8 }}>
+                <div style={styles.labelText}>آیتم نرخ</div>
+                <div style={{ fontWeight: 700 }}>{r?.name || "—"}</div>
+                <div style={{ fontSize: 11, color: "#6B7280" }}>
+                  {toFa(verPrice)} ریال/{r?.unit} {r?.pitType === "pattern" ? `(ارجاع به ${r?.refId || "—"})` : ""}
+                </div>
+              </div>
+
+              {/* نوع چاله */}
+              <div style={{ ...styles.card, padding: 8 }}>
+                <div style={styles.labelText}>نوع چاله</div>
+                <div style={{ fontWeight: 700 }}>{h.pitType === "pattern" ? "پترن" : "سینگل"}</div>
+              </div>
+
+              {/* عمق‌ها / تاریخ */}
+              <div style={{ ...styles.card, padding: 8 }}>
+                <div style={styles.labelText}>عمق‌ها / تاریخ</div>
+                <div style={{ fontWeight: 700 }}>
+                  {h.depth1 != null ? toFa(h.depth1) + " متر" : "—"}
+                  {h.pitType === "pattern" && (h.depth2 != null ? ` | ${toFa(h.depth2)} متر` : "")}
+                </div>
+                <div style={{ fontSize: 11, color: "#6B7280" }}>{h.jDateInitial || "—"}</div>
+              </div>
+
+              {/* عمق چک‌من / تاریخ */}
+              <div style={{ ...styles.card, padding: 8 }}>
+                <div style={styles.labelText}>عمق چک‌من / تاریخ</div>
+                <div style={{ fontWeight: 700 }}>
+                  {showTwoChecks
+                    ? `${h.depthChecked1 != null ? toFa(h.depthChecked1) : "—"} | ${h.depthChecked2 != null ? toFa(h.depthChecked2) : "—"} متر`
+                    : h.depthChecked1 != null
+                    ? toFa(h.depthChecked1) + " متر"
+                    : "—"}
+                </div>
+                <div style={{ fontSize: 11, color: "#6B7280" }}>{h.jDateChecked || "—"}</div>
+              </div>
+
+              {/* قیمت فعلی */}
+              <div style={{ ...styles.card, padding: 8 }}>
+                <div style={styles.labelText}>قیمت فعلی</div>
+                <div style={{ fontWeight: 700 }}>{toFa(price)} ریال</div>
+              </div>
+
+              {/* قیمت جدید بر اساس چک‌من */}
+              {newPriceByCheck != null && (
+                <div style={{ ...styles.card, padding: 8 }}>
+                  <div style={styles.labelText}>قیمت جدید (بر اساس چک‌من)</div>
+                  <div style={{ fontWeight: 700 }}>{toFa(newPriceByCheck)} ریال</div>
+                  {rateByCheck && rateByCheck.id !== h.rateId && (
+                    <div style={{ fontSize: 11, color: "#6B7280", marginTop: 4 }}>
+                      آیتم پیشنهادی بر اساس عمق چک‌من: {rateByCheck.name} ({rateByCheck.id})
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {canClear && (h.depthChecked1 != null || h.depthChecked2 != null) && (
+              <div style={{ marginTop: 8 }}>
+                <Button onClick={() => onClearCheck(h.id)}>حذف عمق چک‌من</Button>
+              </div>
             )}
           </div>
         );
       }
 
-      ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+      function HolesTable({ holes, rateMap, contractorMap, onClearCheck, canClear, onEditRow, onDeleteRow }) {
+        const [search, setSearch] = useState("");
+        const filtered = holes.filter((h) => h.code.includes(search.trim()));
+        const thV = { ...styles.th, borderLeft: "1px solid #E5E7EB" };
+        const tdV = { ...styles.td, borderLeft: "1px solid #E5E7EB" };
+
+        return (
+          <div>
+            <div style={{ ...styles.row, justifyContent: "space_between", marginBottom: 8, alignItems:"end", gap:8 }}>
+              <div style={{ minWidth: 260 }}>
+                <TextInput label="جستجو کد نقطه" value={search} onChange={setSearch} />
+              </div>
+              <div style={{ fontSize: 12, color: "#6B7280", marginTop: 18 }}>{toFa(filtered.length)} مورد</div>
+            </div>
+            <div style={styles.tableWrap}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={thV}>ردیف</th>
+                    <th style={thV}>کد نقطه</th>
+                    <th style={thV}>Swath</th>
+                    <th style={thV}>نوع نقطه</th>
+                    <th style={thV}>نوع گروه</th>
+                    <th style={thV}>نام شرکت</th> {/* ← تغییر عنوان ستون */}
+                    <th style={thV}>نام پیمانکار</th>
+                    <th style={thV}>نام گروه</th>
+                    <th style={thV}>سوپروایزر</th>
+                    <th style={thV}>فورمن</th>
+                    <th style={thV}>مکانیک</th>
+                    <th style={thV}>نوع چاله</th>
+                    <th style={thV}>عمق 1</th>
+                    <th style={thV}>عمق 2</th>
+                    <th style={thV}>تاریخ حفاری (ش)</th>
+                    <th style={thV}>شناسه آیتم نرخ</th>
+                    <th style={thV}>آیتم نرخ</th>
+                    <th style={thV}>توضیحات</th>
+                    <th style={thV}>عمق چک‌من 1</th>
+                    <th style={thV}>عمق چک‌من 2</th>
+                    <th style={thV}>تاریخ کنترل (ش)</th>
+                    <th style={thV}>مبلغ</th>
+                    <th style={thV}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((h, idx) => {
+                    const r = rateMap[h.rateId];
+                    const c = contractorMap[h.contractorId] || {};
+                    const price = r ? calcPricePerPoint(h, r, rateMap) : 0;
+                    const isPattern = h.pitType === "pattern";
+
+                    return (
+                      <tr key={h.id}>
+                        <td style={tdV}>{toFa(idx + 1)}</td>
+                        <td style={tdV}>{h.code}</td>
+                        <td style={tdV}>{h.swath || "—"}</td>
+                        <td style={tdV}>{h.pointType === "rework" ? "دوباره‌کاری" : "نقطه جدید"}</td>
+                        <td style={tdV}>{h.groupType === "contractor" ? "پیمانکاری" : "شرکتی"}</td>
+                        <td style={tdV}>{c.company || h.contractorCompany || "—"}</td> {/* ← مقدار نام شرکت */}
+                        <td style={tdV}>{h.groupType === "contractor" ? h.contractorName || "—" : "—"}</td>
+                        <td style={tdV}>{h.groupType === "company" ? h.groupName || "—" : "—"}</td>
+                        <td style={tdV}>{h.supervisor || "—"}</td>
+                        <td style={tdV}>{h.foreman || "—"}</td>
+                        <td style={tdV}>{h.mechanic || "—"}</td>
+                        <td style={tdV}>{isPattern ? "پترن" : "سینگل"}</td>
+                        <td style={tdV}>{h.depth1 != null ? toFa(h.depth1) : "—"}</td>
+                        <td style={tdV}>{isPattern ? (h.depth2 != null ? toFa(h.depth2) : "—") : "—"}</td>
+                        <td style={tdV}>{h.jDateInitial || "—"}</td>
+                        <td style={tdV}>{h.rateId || "—"}</td>
+                        <td style={tdV}>{r?.name || "—"}</td>
+                        <td style={{ ...tdV, maxWidth: 260, whiteSpace: "normal" }}>{h.notes || "—"}</td>
+                        <td style={tdV}>{h.depthChecked1 != null ? toFa(h.depthChecked1) : "—"}</td>
+                        <td style={tdV}>{isPattern ? (h.depthChecked2 != null ? toFa(h.depthChecked2) : "—") : "—"}</td>
+                        <td style={tdV}>{h.jDateChecked || "—"}</td>
+                        <td style={tdV}>{toFa(price)}</td>
+                        <td style={{ ...tdV, textAlign: "left" }}>
+                          <div style={{ display: "inline-flex", gap: 6 }}>
+                            <button onClick={() => onEditRow(h)} style={{ ...styles.buttonGhost, padding: "4px 8px" }}>
+                              اصلاح
+                            </button>
+                            <button onClick={() => onDeleteRow(h.id)} style={{ ...styles.buttonGhost, padding: "4px 8px" }}>
+                              حذف
+                            </button>
+                            {canClear && (h.depthChecked1 != null || h.depthChecked2 != null) && (
+                              <button onClick={() => onClearCheck(h.id)} style={{ ...styles.buttonGhost, padding: "4px 8px" }}>
+                                حذف چک‌من
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      }
+
+      function SettingsPanel({ projectId, settings, onUpdate }) {
+        const canEdit = settings.role === "admin";
+        const projectPwMap = settings.passwordsPerPersonByProject[projectId] || {};
+        const [pwdMap, setPwdMap] = useState(() => JSON.parse(JSON.stringify(projectPwMap)));
+
+        const roles = ["admin","checker","drilling","planner","contractor"];
+        const save = () => {
+          if (!canEdit) return alert("فقط ادمین می‌تواند ذخیره کند.");
+          const next = normalizeSettings({
+            ...settings,
+            passwordsPerPersonByProject: {
+              ...settings.passwordsPerPersonByProject,
+              [projectId]: pwdMap
+            }
+          });
+          onUpdate(next);
+          alert("پسورد اشخاص (برای پروژه جاری) بروزرسانی شد.");
+        };
+
+        const staff = settings.staffByProject[projectId] || {};
+
+        return (
+          <div style={{ display: "grid", gap: 16 }}>
+            <div style={{ ...styles.card, padding: 12 }}>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>لوگوها</div>
+              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                <TextInput label="لوگوی شرکت (URL)" value={settings.companyLogoUrl || ""} onChange={(v)=>onUpdate(normalizeSettings({ ...settings, companyLogoUrl: v }))} placeholder="https://..." />
+                <TextInput label="لوگوی توسعه‌دهنده (URL)" value={settings.devLogoUrl || ""} onChange={(v)=>onUpdate(normalizeSettings({ ...settings, devLogoUrl: v }))} placeholder="https://..." />
+              </div>
+            </div>
+            {roles.map((role) => (
+              <div key={role} style={{ ...styles.card, padding: 12 }}>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>{roleLabel(role)}</div>
+                <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                  {(staff[role] || []).length === 0 && (
+                    <div style={{ color:"#6B7280", fontSize:12 }}>— هنوز اسمی برای این نقش در این پروژه ثبت نشده است.</div>
+                  )}
+                  {(staff[role] || []).map((name) => {
+                    const val = (pwdMap?.[role]?.[name] ?? "admin");
+                    return (
+                      <TextInput
+                        key={name}
+                        label={`پسورد: ${name}`}
+                        type="password"
+                        value={val}
+                        onChange={(v) => {
+                          setPwdMap((prev) => {
+                            const next = { ...prev, [role]: { ...(prev?.[role]||{}) } };
+                            next[role][name] = v;
+                            return next;
+                          });
+                        }}
+                        disabled={!canEdit}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            <div style={{ alignSelf: "end" }}>
+              <Button onClick={save}>ذخیره پسوردها</Button>
+            </div>
+          </div>
+        );
+      }
+
+      function StaffPanel({ projectId, settings, onUpdate }) {
+        const canEdit = settings.role === "admin";
+        const [staff, setStaff] = useState(() => JSON.parse(JSON.stringify(settings.staffByProject[projectId] || {})));
+        const roles = [
+          { value:"checker", label:"بازرس (چک‌من)" },
+          { value:"drilling", label:"کارشناس حفاری" },
+          { value:"planner", label:"کارشناس برنامه‌ریزی" },
+          { value:"admin", label:"ادمین" },
+          { value:"contractor", label:"پیمانکار" },
+        ];
+
+        const addPersonFor = (role) => {
+          if (!canEdit) return alert("فقط ادمین می‌تواند اضافه کند.");
+          const name = prompt(`نام ${roles.find(r=>r.value===role)?.label || role}:`, "");
+          if (!name) return;
+          setStaff((prev) => {
+            const list = new Set([...(prev[role]||[]), name.trim()]);
+            return { ...prev, [role]: Array.from(list) };
+          });
+        };
+
+        const removePerson = (role, name) => {
+          if (!canEdit) return;
+          setStaff((prev) => {
+            const list = (prev[role]||[]).filter(n => n !== name);
+            return { ...prev, [role]: list };
+          });
+        };
+
+        const save = () => {
+          if (!canEdit) return alert("فقط ادمین می‌تواند ذخیره کند.");
+          const next = normalizeSettings({
+            ...settings,
+            staffByProject: {
+              ...settings.staffByProject,
+              [projectId]: staff
+            }
+          });
+          onUpdate(next);
+          alert("لیست نام‌ها (برای پروژه جاری) بروزرسانی شد.");
+        };
+
+        const rolesWithAddBtn = new Set(["checker","drilling","planner","admin"]);
+
+        return (
+          <div style={{ display: "grid", gap: 16 }}>
+            {roles.map(({value,label}) => (
+              <div key={value} style={{ ...styles.card, padding: 12 }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 8 }}>
+                  <div style={{ fontWeight: 700 }}>{label}</div>
+                  {rolesWithAddBtn.has(value) && canEdit && (
+                    <GhostButton onClick={() => addPersonFor(value)}>افزودن</GhostButton>
+                  )}
+                </div>
+
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                  {(staff[value] || []).map((n)=>(
+                    <span key={n} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"4px 10px", border:"1px solid #E5E7EB", borderRadius:999 }}>
+                      {n}
+                      {canEdit && (
+                        <button onClick={()=>removePerson(value,n)} style={{ ...styles.buttonGhost, padding:"2px 8px" }}>حذف</button>
+                      )}
+                    </span>
+                  ))}
+                  {(staff[value] || []).length === 0 && (
+                    <span style={{ color:"#6B7280", fontSize:12 }}>— هنوز شخصی برای این نقش در این پروژه اضافه نشده است.</span>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div style={{ alignSelf: "end" }}>
+              <Button onClick={save}>ذخیره نام‌ها</Button>
+            </div>
+          </div>
+        );
+      }
+
+      // =====================
+      // Boot
+      // =====================
+      function start() {
+        const root = ReactDOM.createRoot(document.getElementById("root"));
+        root.render(<App />);
+      }
+      if (window.Jalaali) {
+        start();
+      } else {
+        window.addEventListener("jalaali-ready", start, { once: true });
+      }
     </script>
-  </body>
+  
+<script>
+(function(){
+  function ls(key, def){ try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
+  function getActiveProjectId(){ try { return JSON.parse(localStorage.getItem("swiny_active_project_id")) || null; } catch(e){ return null; } }
+  function getAllHoles(projectId){
+    const byProject = ls("swiny_holes_by_project", {});
+    if (byProject && projectId && byProject[projectId]) return byProject[projectId];
+    return ls("swiny_holes", []);
+  }
+  function getRates(projectId){
+    const byProject = ls("swiny_rates_by_project", {});
+    if (byProject && projectId && byProject[projectId]) return byProject[projectId];
+    return ls("swiny_rates", []);
+  }
+  function currentUnitPriceForItem(rates, itemTitle){
+    if (!rates || !Array.isArray(rates)) return 0;
+    let found = rates.filter(r => r && (r.title===itemTitle || r.item===itemTitle));
+    if (found.length===0) return 0;
+    found.sort((a,b)=> (new Date(a.effective||a.date||0)) - (new Date(b.effective||b.date||0)));
+    return Number(found[found.length-1].price || found[found.length-1].unitPrice || 0);
+  }
+  function groupByItemTitle(holes){
+    const map = {};
+    holes.forEach(h=>{
+      const title = (h.rateItemTitle || h.itemTitle || h.item || h.title || "—");
+      (map[title] = map[title] || []).push(h);
+    });
+    return map;
+  }
+  function isCheckedHole(h){
+    return !!(h && (h.depthChecked1!=null || h.jDateChecked!=null || h.dateChecked!=null || h.checked===true));
+  }
+  function renderContractorSV(){
+    var tbody = document.getElementById('sv_status_body');
+    if (!tbody) return;
+    const checkedOnly = document.getElementById('sv_checkedOnly')?.checked || false;
+    const allPoints = document.getElementById('sv_allPoints')?.checked || false;
+    const pid = getActiveProjectId();
+    const holes = getAllHoles(pid);
+    let filtered = Array.isArray(holes) ? holes.slice() : [];
+    if (checkedOnly) filtered = filtered.filter(isCheckedHole);
+    else if (allPoints) filtered = filtered.filter(h => !isCheckedHole(h));
+    const grouped = groupByItemTitle(filtered);
+    const rates = getRates(pid);
+    tbody.innerHTML = "";
+    const titles = Object.keys(grouped);
+    if (titles.length===0){
+      const tr = document.createElement('tr');
+      const td = document.createElement('td'); td.colSpan = 6; td.style.textAlign = 'center'; td.style.padding = '12px';
+      td.textContent = '— موردی برای نمایش نیست —';
+      tr.appendChild(td); tbody.appendChild(tr); return;
+    }
+    titles.forEach((title, idx)=>{
+      const list = grouped[title];
+      const count = list.length;
+      const unitPrice = currentUnitPriceForItem(rates, title);
+      const total = count * unitPrice;
+      const tr = document.createElement('tr');
+      function td(v){ const t = document.createElement('td'); t.textContent = v; return t; }
+      tr.appendChild(td(idx+1));
+      tr.appendChild(td(title));
+      tr.appendChild(td('نقطه'));
+      tr.appendChild(td(count));
+      tr.appendChild(td(unitPrice.toLocaleString('fa-IR')));
+      tr.appendChild(td(total.toLocaleString('fa-IR')));
+      tbody.appendChild(tr);
+    });
+  }
+  window.addEventListener('sv_filter_change', renderContractorSV);
+  document.addEventListener('click', function(ev){
+    const el = ev.target;
+    if (el && el.innerText && (el.innerText.includes('صورت وضعیت پیمانکار'))) {
+      setTimeout(renderContractorSV, 10);
+    }
+  });
+  document.addEventListener('DOMContentLoaded', function(){ renderContractorSV(); });
+})();
+</script>
+
+</body>
 </html>
