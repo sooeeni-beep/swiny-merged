@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <title>صورت وضعیت پیمانکار</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+        *{box-sizing:border-box}
+        html,body{height:100%; margin:0}
+        body{background:#f6f7fb; color:#111; font-family: IRANYekan, tahoma, sans-serif}
+        table{border-collapse:collapse;width:100%}
+        th, td{border:1px solid #e5e7eb;padding:8px;text-align:center}
+        thead th{background:#f3f4f6;font-weight:600}
+        .status-table{margin-top:12px}
+        .badge{display:inline-block;background:#e5edff;border:1px solid #c7d2fe;color:#1d4ed8;padding:2px 8px;border-radius:999px;font-size:12px}
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        const toFa = (v) => new Intl.NumberFormat('fa-IR').format(Number(v || 0));
+
+        const SVContractorStatus = ({ projContractors, projHoles, projRates, rateMap }) => {
+            const [svContractorId, setSvContractorId] = useState('');
+            const [svJStart, setSvJStart] = useState('');
+            const [svJEnd, setSvJEnd] = useState('');
+            const [svCheckedOnly, setSvCheckedOnly] = useState(false);
+            const [svAllPoints, setSvAllPoints] = useState(false);
+
+            const svRows = useMemo(() => {
+                const startISO = svJStart ? jalaliToISO(svJStart) : '';
+                const endISO = svJEnd ? jalaliToISO(svJEnd) : '';
+                let filtered = projHoles.filter(h => true);
+                if (svContractorId) filtered = filtered.filter(h => h.groupType === 'contractor' && h.contractorId === svContractorId);
+                if (startISO) filtered = filtered.filter(h => (h.dateInitial || '') >= startISO);
+                if (endISO) filtered = filtered.filter(h => (h.dateInitial || '') <= endISO);
+                if (svCheckedOnly) filtered = filtered.filter(h => !!(h && (h.depthChecked1 != null || h.jDateChecked || h.dateChecked)));
+                else if (svAllPoints) filtered = filtered.filter(h => !(h && (h.depthChecked1 != null || h.jDateChecked || h.dateChecked)));
+
+                const map = {};
+                filtered.forEach(h => {
+                    const rate = rateMap[h.rateId];
+                    const title = rate?.name || '—';
+                    map[title] = map[title] || { title, unit: 'نقطه', count: 0, unitPrice: 0 };
+                    map[title].count += 1;
+                });
+
+                Object.values(map).forEach(g => {
+                    const sampleRate = projRates.find(r => r.name === g.title);
+                    g.unitPrice = Number(sampleRate?.price || sampleRate?.unitPrice || 0);
+                });
+
+                const rows = Object.values(map).map(g => ({ ...g, total: g.count * (g.unitPrice || 0) }));
+                rows.sort((a, b) => a.title.localeCompare(b.title, 'fa'));
+                return rows;
+            }, [projHoles, projRates, rateMap, svContractorId, svJStart, svJEnd, svCheckedOnly, svAllPoints]);
+
+            return (
+                <div>
+                    <h3>صورت وضعیت پیمانکار</h3>
+                    <label>پیمانکار</label>
+                    <select value={svContractorId} onChange={(e) => setSvContractorId(e.target.value)}>
+                        <option value="">همه پیمانکاران</option>
+                        {projContractors.map(c => <option key={c.id} value={c.id}>{c.company}</option>)}
+                    </select>
+
+                    <label>از تاریخ (جلالی)</label>
+                    <input type="text" value={svJStart} onChange={(e) => setSvJStart(e.target.value)} placeholder="YYYY-MM-DD" />
+
+                    <label>تا تاریخ (جلالی)</label>
+                    <input type="text" value={svJEnd} onChange={(e) => setSvJEnd(e.target.value)} placeholder="YYYY-MM-DD" />
+
+                    <div>
+                        <label>
+                            <input type="checkbox" checked={svCheckedOnly} onChange={(e) => { setSvCheckedOnly(e.target.checked); if (e.target.checked) setSvAllPoints(false); }} />
+                            نقاط چِک‌مِنی شده
+                        </label>
+                        <label>
+                            <input type="checkbox" checked={svAllPoints} onChange={(e) => { setSvAllPoints(e.target.checked); if (e.target.checked) setSvCheckedOnly(false); }} />
+                            همه نقاط (فاقد چک‌من)
+                        </label>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ردیف</th>
+                                <th>شرح</th>
+                                <th>واحد</th>
+                                <th>تعداد چاله</th>
+                                <th>قیمت واحد</th>
+                                <th>مبلغ این دوره</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {svRows.length === 0 ? (
+                                <tr>
+                                    <td colSpan="6">— موردی برای نمایش نیست —</td>
+                                </tr>
+                            ) : (
+                                svRows.map((r, i) => (
+                                    <tr key={r.title}>
+                                        <td>{toFa(i + 1)}</td>
+                                        <td>{r.title}</td>
+                                        <td>نقطه</td>
+                                        <td>{toFa(r.count)}</td>
+                                        <td>{toFa(r.unitPrice)}</td>
+                                        <td>{toFa(r.total)}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        };
+
+        // Exporting the component as default
+        export default SVContractorStatus;
+    </script>
+</body>
+</html>
