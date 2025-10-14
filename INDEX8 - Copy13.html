@@ -1,25 +1,22 @@
-<!doctype html>
-<html lang="fa" dir="rtl">
-  <head>
-    <meta charset="utf-8" />
-    <title>Swiny — Drilling Live (Standalone)</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+<!DOCTYPE html>
 
-    <!-- React & ReactDOM (UMD dev builds) -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-
-    <!-- Babel (compile JSX in browser) -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <!-- Load jalaali-js (ESM) and expose to window, then signal readiness -->
-    <script type="module">
+<html dir="rtl" lang="fa">
+<head>
+<meta charset="utf-8"/>
+<title>Swiny — Drilling Live (Standalone)</title>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<!-- React & ReactDOM (UMD dev builds) -->
+<script crossorigin="" src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin="" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<!-- Babel (compile JSX in browser) -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- Load jalaali-js (ESM) and expose to window, then signal readiness -->
+<script type="module">
       import * as Jalaali from "https://esm.sh/jalaali-js@1?bundle";
       window.Jalaali = Jalaali;
       window.dispatchEvent(new Event("jalaali-ready"));
     </script>
-
-    <style>
+<style>
       /* اگر فایل فونت IRANYekanRD دارید، اینجا @font-face اضافه کنید */
       /*
       @font-face {
@@ -169,16 +166,11 @@ table { width: 100%; }
 .topbar-fixed > :has(> .logout-btn){ order: 3; }
 
 </style>
-
-
-
-
-  </head>
-  <body>
-    <div id="root"></div>
-
-    <!-- App code -->
-    <script type="text/babel" data-presets="react">
+</head>
+<body>
+<div id="root"></div>
+<!-- App code -->
+<script data-presets="react" type="text/babel">
       const { useEffect, useMemo, useState, useRef } = React;
 
       // =====================
@@ -1331,16 +1323,7 @@ function HamburgerMenu({
             <ItemBtn onClick={() => setTab("new")}>ثبت نقطه</ItemBtn>
             <ItemBtn onClick={() => setTab("check")}>ثبت چک‌من</ItemBtn>
             <ItemBtn onClick={() => setTab("list")}>لیست نقاط</ItemBtn>
-          
-        <div className="menu-section">
-          <div className="menu-section-title" style={{marginTop:10}}>صورت وضعیت</div>
-          <div className="menu-grid">
-            <ItemBtn onClick={() => setTab("sv-contractor")}>صورت وضعیت پیمانکار</ItemBtn>
-            <ItemBtn onClick={() => setTab("sv-company")}>صورت وضعیت شرکت</ItemBtn>
           </div>
-        </div>
-
-</div>
         </div>
 
         {isAdmin && (
@@ -1629,23 +1612,7 @@ function HamburgerMenu({
                   </Card>
                   <Card title="راهنما">
                     <ul style={{ paddingRight: 18, lineHeight: 1.9, fontSize: 13 }}>
-                      <li>پیمانکار: ثبت نقطه با کد، انت
-              {!projectRequiredBlocker && tab === "sv-contractor" && (
-                <Card title="صورت وضعیت پیمانکار">
-                  <div style={{ fontSize: 13, color: "#6B7280" }}>
-                    این بخش برای تهیه و مدیریت «صورت‌وضعیت پیمانکار» است. در گام بعد، جزییات فیلدها و محاسبات را اضافه می‌کنیم.
-                  </div>
-                </Card>
-              )}
-
-              {!projectRequiredBlocker && tab === "sv-company" && (
-                <Card title="صورت وضعیت شرکت">
-                  <div style={{ fontSize: 13, color: "#6B7280" }}>
-                    این بخش برای تهیه و مدیریت «صورت‌وضعیت شرکت» است. پس از تایید شما، فرم‌ها و خروجی‌ها را تعریف می‌کنیم.
-                  </div>
-                </Card>
-              )}
-خاب پیمانکار، ورود عمق‌ها (برای انتخاب خودکار آیتم).</li>
+                      <li>پیمانکار: ثبت نقطه با کد، انتخاب پیمانکار، ورود عمق‌ها (برای انتخاب خودکار آیتم).</li>
                       <li>بازرس (چک‌من): ثبت عمق‌های کنترل و تاریخ کنترل (شمسی).</li>
                       <li>ادمین: مدیریت پروژه‌ها، قیمت چاله و پیمانکاران + تنظیم پسورد اشخاص (بر مبنای پروژه فعال).</li>
                     </ul>
@@ -2749,5 +2716,33 @@ function HamburgerMenu({
         window.addEventListener("jalaali-ready", start, { once: true });
       }
     </script>
-  </body>
+
+<div id="status-report">
+<div class="status-filter">
+<label>
+<input id="checkedOnly" type="checkbox"/> نقاط چک‌منی شده
+        </label>
+<label>
+<input id="allPoints" type="checkbox"/> همه نقاط
+        </label>
+</div>
+<div class="status-table">
+<table>
+<thead>
+<tr>
+<th>ردیف</th>
+<th>شرح</th>
+<th>واحد</th>
+<th>تعداد چاله</th>
+<th>قیمت واحد</th>
+<th>مبلغ این دوره</th>
+</tr>
+</thead>
+<tbody id="status-body">
+<!-- محتوای جدول توسط جاوااسکریپت بارگذاری می‌شود -->
+</tbody>
+</table>
+</div>
+</div>
+</body>
 </html>
