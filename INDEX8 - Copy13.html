@@ -1331,7 +1331,16 @@ function HamburgerMenu({
             <ItemBtn onClick={() => setTab("new")}>ثبت نقطه</ItemBtn>
             <ItemBtn onClick={() => setTab("check")}>ثبت چک‌من</ItemBtn>
             <ItemBtn onClick={() => setTab("list")}>لیست نقاط</ItemBtn>
+          
+        <div className="menu-section">
+          <div className="menu-section-title" style={{marginTop:10}}>صورت وضعیت</div>
+          <div className="menu-grid">
+            <ItemBtn onClick={() => setTab("sv-contractor")}>صورت وضعیت پیمانکار</ItemBtn>
+            <ItemBtn onClick={() => setTab("sv-company")}>صورت وضعیت شرکت</ItemBtn>
           </div>
+        </div>
+
+</div>
         </div>
 
         {isAdmin && (
@@ -1620,7 +1629,23 @@ function HamburgerMenu({
                   </Card>
                   <Card title="راهنما">
                     <ul style={{ paddingRight: 18, lineHeight: 1.9, fontSize: 13 }}>
-                      <li>پیمانکار: ثبت نقطه با کد، انتخاب پیمانکار، ورود عمق‌ها (برای انتخاب خودکار آیتم).</li>
+                      <li>پیمانکار: ثبت نقطه با کد، انت
+              {!projectRequiredBlocker && tab === "sv-contractor" && (
+                <Card title="صورت وضعیت پیمانکار">
+                  <div style={{ fontSize: 13, color: "#6B7280" }}>
+                    این بخش برای تهیه و مدیریت «صورت‌وضعیت پیمانکار» است. در گام بعد، جزییات فیلدها و محاسبات را اضافه می‌کنیم.
+                  </div>
+                </Card>
+              )}
+
+              {!projectRequiredBlocker && tab === "sv-company" && (
+                <Card title="صورت وضعیت شرکت">
+                  <div style={{ fontSize: 13, color: "#6B7280" }}>
+                    این بخش برای تهیه و مدیریت «صورت‌وضعیت شرکت» است. پس از تایید شما، فرم‌ها و خروجی‌ها را تعریف می‌کنیم.
+                  </div>
+                </Card>
+              )}
+خاب پیمانکار، ورود عمق‌ها (برای انتخاب خودکار آیتم).</li>
                       <li>بازرس (چک‌من): ثبت عمق‌های کنترل و تاریخ کنترل (شمسی).</li>
                       <li>ادمین: مدیریت پروژه‌ها، قیمت چاله و پیمانکاران + تنظیم پسورد اشخاص (بر مبنای پروژه فعال).</li>
                     </ul>
