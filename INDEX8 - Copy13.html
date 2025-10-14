@@ -1,22 +1,25 @@
-<!DOCTYPE html>
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Swiny — Drilling Live (Standalone)</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-<html dir="rtl" lang="fa">
-<head>
-<meta charset="utf-8"/>
-<title>Swiny — Drilling Live (Standalone)</title>
-<meta content="width=device-width,initial-scale=1" name="viewport"/>
-<!-- React & ReactDOM (UMD dev builds) -->
-<script crossorigin="" src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script crossorigin="" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<!-- Babel (compile JSX in browser) -->
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<!-- Load jalaali-js (ESM) and expose to window, then signal readiness -->
-<script type="module">
+    <!-- React & ReactDOM (UMD dev builds) -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+
+    <!-- Babel (compile JSX in browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Load jalaali-js (ESM) and expose to window, then signal readiness -->
+    <script type="module">
       import * as Jalaali from "https://esm.sh/jalaali-js@1?bundle";
       window.Jalaali = Jalaali;
       window.dispatchEvent(new Event("jalaali-ready"));
     </script>
-<style>
+
+    <style>
       /* اگر فایل فونت IRANYekanRD دارید، اینجا @font-face اضافه کنید */
       /*
       @font-face {
@@ -166,11 +169,16 @@ table { width: 100%; }
 .topbar-fixed > :has(> .logout-btn){ order: 3; }
 
 </style>
-</head>
-<body>
-<div id="root"></div>
-<!-- App code -->
-<script data-presets="react" type="text/babel">
+
+
+
+
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- App code -->
+    <script type="text/babel" data-presets="react">
       const { useEffect, useMemo, useState, useRef } = React;
 
       // =====================
@@ -1338,6 +1346,13 @@ function HamburgerMenu({
               <ItemBtn onClick={onResetProject}>♻️ بازنشانی پروژهٔ جاری</ItemBtn>
               <ItemBtn onClick={onResetAll}>🗑️ بازنشانی کامل</ItemBtn>
             </div>
+
+            <div className="menu-section-title" style={{marginTop:10}}>صورت وضعیت</div>
+            <div className="menu-grid">
+              <ItemBtn onClick={() => setTab("sv_contractor")}>صورت وضعیت پیمانکار</ItemBtn>
+              <ItemBtn onClick={() => setTab("sv_company")}>صورت وضعیت شرکت</ItemBtn>
+            </div>
+    
           </>
         )}
       </div>
@@ -2716,33 +2731,85 @@ function HamburgerMenu({
         window.addEventListener("jalaali-ready", start, { once: true });
       }
     </script>
+  
+<script>
+(function(){
+  function ls(key, def){ try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
+  function getActiveProjectId(){ try { return JSON.parse(localStorage.getItem("swiny_active_project_id")) || null; } catch(e){ return null; } }
+  function getAllHoles(projectId){
+    const byProject = ls("swiny_holes_by_project", {});
+    if (byProject && projectId && byProject[projectId]) return byProject[projectId];
+    return ls("swiny_holes", []);
+  }
+  function getRates(projectId){
+    const byProject = ls("swiny_rates_by_project", {});
+    if (byProject && projectId && byProject[projectId]) return byProject[projectId];
+    return ls("swiny_rates", []);
+  }
+  function currentUnitPriceForItem(rates, itemTitle){
+    if (!rates || !Array.isArray(rates)) return 0;
+    let found = rates.filter(r => r && (r.title===itemTitle || r.item===itemTitle));
+    if (found.length===0) return 0;
+    found.sort((a,b)=> (new Date(a.effective||a.date||0)) - (new Date(b.effective||b.date||0)));
+    return Number(found[found.length-1].price || found[found.length-1].unitPrice || 0);
+  }
+  function groupByItemTitle(holes){
+    const map = {};
+    holes.forEach(h=>{
+      const title = (h.rateItemTitle || h.itemTitle || h.item || h.title || "—");
+      (map[title] = map[title] || []).push(h);
+    });
+    return map;
+  }
+  function isCheckedHole(h){
+    return !!(h && (h.depthChecked1!=null || h.jDateChecked!=null || h.dateChecked!=null || h.checked===true));
+  }
+  function renderContractorSV(){
+    var tbody = document.getElementById('sv_status_body');
+    if (!tbody) return;
+    const checkedOnly = document.getElementById('sv_checkedOnly')?.checked || false;
+    const allPoints = document.getElementById('sv_allPoints')?.checked || false;
+    const pid = getActiveProjectId();
+    const holes = getAllHoles(pid);
+    let filtered = Array.isArray(holes) ? holes.slice() : [];
+    if (checkedOnly) filtered = filtered.filter(isCheckedHole);
+    else if (allPoints) filtered = filtered.filter(h => !isCheckedHole(h));
+    const grouped = groupByItemTitle(filtered);
+    const rates = getRates(pid);
+    tbody.innerHTML = "";
+    const titles = Object.keys(grouped);
+    if (titles.length===0){
+      const tr = document.createElement('tr');
+      const td = document.createElement('td'); td.colSpan = 6; td.style.textAlign = 'center'; td.style.padding = '12px';
+      td.textContent = '— موردی برای نمایش نیست —';
+      tr.appendChild(td); tbody.appendChild(tr); return;
+    }
+    titles.forEach((title, idx)=>{
+      const list = grouped[title];
+      const count = list.length;
+      const unitPrice = currentUnitPriceForItem(rates, title);
+      const total = count * unitPrice;
+      const tr = document.createElement('tr');
+      function td(v){ const t = document.createElement('td'); t.textContent = v; return t; }
+      tr.appendChild(td(idx+1));
+      tr.appendChild(td(title));
+      tr.appendChild(td('نقطه'));
+      tr.appendChild(td(count));
+      tr.appendChild(td(unitPrice.toLocaleString('fa-IR')));
+      tr.appendChild(td(total.toLocaleString('fa-IR')));
+      tbody.appendChild(tr);
+    });
+  }
+  window.addEventListener('sv_filter_change', renderContractorSV);
+  document.addEventListener('click', function(ev){
+    const el = ev.target;
+    if (el && el.innerText && (el.innerText.includes('صورت وضعیت پیمانکار'))) {
+      setTimeout(renderContractorSV, 10);
+    }
+  });
+  document.addEventListener('DOMContentLoaded', function(){ renderContractorSV(); });
+})();
+</script>
 
-<div id="status-report">
-<div class="status-filter">
-<label>
-<input id="checkedOnly" type="checkbox"/> نقاط چک‌منی شده
-        </label>
-<label>
-<input id="allPoints" type="checkbox"/> همه نقاط
-        </label>
-</div>
-<div class="status-table">
-<table>
-<thead>
-<tr>
-<th>ردیف</th>
-<th>شرح</th>
-<th>واحد</th>
-<th>تعداد چاله</th>
-<th>قیمت واحد</th>
-<th>مبلغ این دوره</th>
-</tr>
-</thead>
-<tbody id="status-body">
-<!-- محتوای جدول توسط جاوااسکریپت بارگذاری می‌شود -->
-</tbody>
-</table>
-</div>
-</div>
 </body>
 </html>
