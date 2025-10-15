@@ -2,125 +2,195 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>صورت وضعیت پیمانکار</title>
   <style>
+    :root{--bg:#f6f7fb; --card:#fff; --border:#e5e7eb; --muted:#6B7280; --th:#f3f4f6;}
     *{box-sizing:border-box}
-    body{margin:0;padding:16px;background:#f6f7fb;color:#111;font-family:tahoma, sans-serif}
-    h1{font-size:18px;margin:0 0 12px}
-    .row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px}
-    label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#667085;min-width:220px}
-    input,select{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
+    body{margin:0;background:var(--bg);color:#111;font-family:tahoma, sans-serif}
+    .wrap{max-width:1200px;margin:16px auto;padding:12px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+    .title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .title h1{font-size:18px;margin:0}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+    .field{display:flex;gap:6px;align-items:center}
+    .field label{font-size:12px;color:#374151}
+    select,input[type=text]{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
+    input[type=checkbox]{transform:scale(1.1)}
     table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #e5e7eb;padding:8px;text-align:center}
-    thead th{background:#f3f4f6;font-weight:600}
-    .muted{color:#6B7280}
-    .chips{display:flex;gap:16px;align-items:center;margin-bottom:12px}
+    th,td{border:1px solid var(--border);padding:8px;text-align:center}
+    thead th{background:var(--th);font-weight:600}
+    .muted{color:var(--muted)}
   </style>
 </head>
 <body>
-  <h1>صورت وضعیت پیمانکار</h1>
+  <div class="wrap">
+    <div class="card">
+      <div class="title">
+        <h1>صورت وضعیت پیمانکار</h1>
+        <div id="projectBadge" class="muted"></div>
+      </div>
 
-  <div class="row">
-    <label>پیمانکار
-      <select id="contractorSelect"><option value="">همه پیمانکاران</option></select>
-    </label>
-    <label>از تاریخ (جلالی)
-      <input id="startJ" placeholder="YYYY-MM-DD"/>
-    </label>
-    <label>تا تاریخ (جلالی)
-      <input id="endJ" placeholder="YYYY-MM-DD"/>
-    </label>
-  </div>
+      <!-- فیلترها در یک ردیف -->
+      <div class="row" id="filtersRow">
+        <div class="field">
+          <label>پیمانکار</label>
+          <select id="contractorSelect"><option value="">همه پیمانکاران</option></select>
+        </div>
+        <div class="field">
+          <label>از تاریخ (جلالی)</label>
+          <input id="startJ" type="text" placeholder="YYYY-MM-DD"/>
+        </div>
+        <div class="field">
+          <label>تا تاریخ (جلالی)</label>
+          <input id="endJ" type="text" placeholder="YYYY-MM-DD"/>
+        </div>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:6px;">
+            <input type="checkbox" id="checkedOnly"/> نقاط چِک‌مِنی شده
+          </label>
+        </div>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:6px;">
+            <input type="checkbox" id="allPoints"/> همه نقاط (فاقد چک‌من)
+          </label>
+        </div>
+      </div>
 
-  <div class="chips">
-    <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:#111">
-      <input type="checkbox" id="checkedOnly"/> نقاط چِک‌مِنی شده
-    </label>
-    <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:#111">
-      <input type="checkbox" id="allPoints"/> همه نقاط (فاقد چک‌من)
-    </label>
-  </div>
-
-  <div style="overflow-x:auto">
-    <table id="svTable" style="min-width:720px">
-      <thead>
-        <tr>
-          <th>ردیف</th><th>شرح</th><th>واحد</th><th>تعداد چاله</th><th>قیمت واحد</th><th>مبلغ این دوره</th>
-        </tr>
-      </thead>
-      <tbody id="svBody">
-        <tr><td colspan="6" class="muted">— موردی برای نمایش نیست —</td></tr>
-      </tbody>
-    </table>
+      <div style="overflow-x:auto;margin-top:8px">
+        <table style="min-width:900px">
+          <thead>
+            <tr>
+              <th>ردیف</th>
+              <th>شرح</th>
+              <th>واحد</th>
+              <th>تعداد چاله</th>
+              <th>قیمت واحد</th>
+              <th>مبلغ این دوره</th>
+            </tr>
+          </thead>
+          <tbody id="svBody">
+            <tr><td colspan="6" class="muted">— موردی برای نمایش نیست —</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <script>
+    /* ================= پیکربندی مسیر داده‌ها =================
+       اگر کلیدهای localStorage شما متفاوت است، فقط این‌ها را عوض کن. */
+    const KEY_ACTIVE_PROJECT = "swiny_active_project_id";
+    const KEYS_HOLES_BY_PROJECT   = ["swiny_holes_by_project"];
+    const KEYS_HOLES              = ["swiny_holes"];
+    const KEYS_RATES_BY_PROJECT   = ["swiny_rates_by_project"];
+    const KEYS_RATES              = ["swiny_rates"];
+    const KEYS_CONTRACTORS_BY_PROJECT = ["swiny_contractors_by_project"];
+    const KEYS_CONTRACTORS        = ["swiny_contractors"];
+
+    /* ================= توابع مشترک ================= */
     const toFa = v => new Intl.NumberFormat('fa-IR').format(Number(v||0));
     const ls = (k,d)=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } };
-    const jalaliToISO = j => j; // اگر مبدل جلالی دارید جایگزین کنید
+    const jalaliToISO = j => j; // اگر مبدل جلالی دارید همین‌جا جایگزین کنید
+    const todayISO = () => new Date().toISOString();
+    function getActiveProjectId(){ try{ return JSON.parse(localStorage.getItem(KEY_ACTIVE_PROJECT)) || localStorage.getItem(KEY_ACTIVE_PROJECT) || "" }catch(e){ return "" } }
+    function firstNonEmpty(arr){ for(const x of arr){ if(x!=null) return x } return null }
+    function readByProject(keys, pid){ for(const k of keys){ const obj=ls(k,null); if(obj && typeof obj==='object' && pid && obj[pid]) return obj[pid]; } return null; }
+    function readArray(keys){ for(const k of keys){ const arr=ls(k,null); if(Array.isArray(arr)) return arr; } return null; }
 
-    const holes = ls('swiny_holes', []);            // ← کلیدها را در صورت نیاز با پروژه‌ات هماهنگ کن
-    const rates = ls('swiny_rates', []);
-    const contractors = ls('swiny_contractors', []);
-    const rateMapById = Object.fromEntries(rates.map(r=>[r.id, r]));
-
-    const contractorSelect = document.getElementById('contractorSelect');
-    if (contractors?.length){
-      contractors.forEach(c=>{
-        const opt=document.createElement('option');
-        opt.value = c.id || c.code || c.company || '';
-        opt.textContent = c.company || c.name || c.id || opt.value;
-        contractorSelect.appendChild(opt);
+    function loadHoles(pid){ return firstNonEmpty([ readByProject(KEYS_HOLES_BY_PROJECT, pid), readArray(KEYS_HOLES), [] ]) || []; }
+    function loadRates(pid){ return firstNonEmpty([ readByProject(KEYS_RATES_BY_PROJECT, pid), readArray(KEYS_RATES), [] ]) || []; }
+    function loadContractors(pid){
+      const list = firstNonEmpty([ readByProject(KEYS_CONTRACTORS_BY_PROJECT, pid), readArray(KEYS_CONTRACTORS), [] ]);
+      if (Array.isArray(list) && list.length) return list;
+      // fallback: استخراج از نقاط
+      const set = new Map();
+      (window.__holes||[]).forEach(h=>{
+        const id = h.contractorId || h.contractor || h.contractorCode;
+        const label = h.contractorName || h.contractorTitle || id;
+        if (id) set.set(id, {id, company: label||id});
       });
+      return Array.from(set.values());
     }
 
-    function isCheckedHole(h){
-      return !!(h && (h.depthChecked1!=null || h.jDateChecked || h.dateChecked || h.checked===true));
-    }
-    function currentUnitPriceByTitle(title){
-      const cand = rates.filter(r => r && (r.name===title));
+    function unitPriceForTitle(rates, title, today){
+      // پیدا کردن قیمت واحدِ فعال بر اساس نام آیتم نرخ
+      const cand = (rates||[]).filter(r => r && (r.name===title || r.title===title));
       if (!cand.length) return 0;
-      cand.sort((a,b)=> new Date(a.effective||a.date||0)-new Date(b.effective||b.date||0));
+      cand.sort((a,b)=> new Date(a.effective||a.date||0) - new Date(b.effective||b.date||0));
       const last = cand[cand.length-1];
       return Number(last.price || last.unitPrice || 0);
     }
 
+    /* ================= بارگذاری داده‌ها ================= */
+    const pid = getActiveProjectId();
+    document.getElementById('projectBadge').textContent = pid ? ('پروژه: '+pid) : '';
+    window.__holes = loadHoles(pid);
+    const rates = loadRates(pid);
+    const rateById = Object.fromEntries((rates||[]).map(r=>[r.id, r]));
+    const contractors = loadContractors(pid);
+
+    // پر کردن لیست پیمانکاران
+    const contractorSelect = document.getElementById('contractorSelect');
+    contractors.forEach(c=>{
+      const opt=document.createElement('option');
+      opt.value = c.id || c.code || c.company || '';
+      opt.textContent = c.company || c.name || c.title || opt.value;
+      contractorSelect.appendChild(opt);
+    });
+
+    // ایونت‌ها
+    const startEl = document.getElementById('startJ');
+    const endEl = document.getElementById('endJ');
+    const checkedEl = document.getElementById('checkedOnly');
+    const allEl = document.getElementById('allPoints');
+    checkedEl.addEventListener('change', ()=>{ if(checkedEl.checked) allEl.checked=false; render(); });
+    allEl.addEventListener('change', ()=>{ if(allEl.checked) checkedEl.checked=false; render(); });
+    startEl.addEventListener('input', render);
+    endEl.addEventListener('input', render);
+    contractorSelect.addEventListener('change', render);
+
+    function isCheckedHole(h){
+      return !!(h && (h.depthChecked1!=null || h.jDateChecked || h.dateChecked || h.checked===true));
+    }
+
     function render(){
-      const tbody=document.getElementById('svBody'); tbody.innerHTML='';
+      const tbody=document.getElementById('svBody');
+      tbody.innerHTML='';
+
       const cId = contractorSelect.value;
-      const jStart = document.getElementById('startJ').value.trim();
-      const jEnd = document.getElementById('endJ').value.trim();
-      const startISO = jStart ? jalaliToISO(jStart) : '';
-      const endISO = jEnd ? jalaliToISO(jEnd) : '';
-      const checkedOnly = document.getElementById('checkedOnly').checked;
-      const allPoints = document.getElementById('allPoints').checked;
+      const startISO = startEl.value ? jalaliToISO(startEl.value.trim()) : '';
+      const endISO   = endEl.value   ? jalaliToISO(endEl.value.trim())   : '';
+      const today = todayISO();
 
-      let filtered = Array.isArray(holes) ? holes.slice() : [];
-      if (cId) filtered = filtered.filter(h => (h.groupType==='contractor') && (h.contractorId===cId));
-      if (startISO) filtered = filtered.filter(h => (h.dateInitial||'') >= startISO);
-      if (endISO)   filtered = filtered.filter(h => (h.dateInitial||'') <= endISO);
-      if (checkedOnly) filtered = filtered.filter(isCheckedHole);
-      else if (allPoints) filtered = filtered.filter(h => !isCheckedHole(h));
+      let filtered = Array.isArray(window.__holes) ? window.__holes.slice() : [];
+      if (cId) filtered = filtered.filter(h => (h.groupType==='contractor' || !h.groupType) && (h.contractorId===cId || h.contractor===cId));
+      if (startISO) filtered = filtered.filter(h => (h.dateInitial||h.date||'') >= startISO);
+      if (endISO)   filtered = filtered.filter(h => (h.dateInitial||h.date||'') <= endISO);
+      if (checkedEl.checked) filtered = filtered.filter(isCheckedHole);
+      else if (allEl.checked) filtered = filtered.filter(h => !isCheckedHole(h));
 
+      // گروه‌بندی بر اساس عنوان آیتم نرخ
       const groups = {};
       filtered.forEach(h=>{
-        const rate = rateMapById[h.rateId];
-        const title = rate?.name || '—';
-        (groups[title]=groups[title]||[]).push(h);
+        const rate = rateById[h.rateId];
+        const title = rate?.name || rate?.title || h.rateItemTitle || h.itemTitle || h.item || h.title || '—';
+        (groups[title] = groups[title] || []).push(h);
       });
 
-      const titles = Object.keys(groups);
+      const titles = Object.keys(groups).sort((a,b)=> a.localeCompare(b,'fa'));
       if (!titles.length){
         const tr=document.createElement('tr'); const td=document.createElement('td');
         td.colSpan=6; td.className='muted'; td.textContent='— موردی برای نمایش نیست —';
         tr.appendChild(td); tbody.appendChild(tr); return;
       }
 
-      titles.sort((a,b)=> a.localeCompare(b,'fa'));
       titles.forEach((title,i)=>{
-        const list=groups[title]; const count=list.length;
-        const unitPrice=currentUnitPriceByTitle(title); const total=count*unitPrice;
+        const list=groups[title];
+        const count=list.length;
+        const unitPrice = unitPriceForTitle(rates, title, today);
+        const total = count * unitPrice;
+
         const tr=document.createElement('tr');
         function cell(v){ const td=document.createElement('td'); td.textContent=v; return td }
         tr.appendChild(cell(toFa(i+1)));
@@ -133,15 +203,6 @@
       });
     }
 
-    document.getElementById('checkedOnly').addEventListener('change', e=>{
-      if (e.target.checked) document.getElementById('allPoints').checked=false; render();
-    });
-    document.getElementById('allPoints').addEventListener('change', e=>{
-      if (e.target.checked) document.getElementById('checkedOnly').checked=false; render();
-    });
-    document.getElementById('startJ').addEventListener('input', render);
-    document.getElementById('endJ').addEventListener('input', render);
-    contractorSelect.addEventListener('change', render);
     render();
   </script>
 </body>
