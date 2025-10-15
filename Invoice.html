@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>صورت وضعیت پیمانکار</title>
   <style>
-    :root{--bg:#f6f7fb; --card:#fff; --border:#e5e7eb; --muted:#6B7280; --th:#f3f4f6;}
+    :root{--bg:#f6f7fb; --card:#fff; --border:#e5e7eb; --muted:#6B7280; --th:#f3f4f6}
     *{box-sizing:border-box}
     html,body{height:100%}
     body{margin:0;background:var(--bg);color:#111;font-family:tahoma, sans-serif}
-    /* تمام‌عرض */
     .wrap{width:100%;margin:0 auto;padding:16px}
     .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
     .title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
@@ -19,12 +18,14 @@
     .field label{font-size:12px;color:#374151}
     select,input[type=text]{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
     input[type=checkbox]{transform:scale(1.1)}
+    .table-wrap{overflow-x:auto;margin-top:8px}
     table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid var(--border);padding:8px;text-align:center; white-space:nowrap;}
+    th,td{border:1px solid var(--border);padding:8px;text-align:center;white-space:nowrap}
     thead th{background:var(--th);font-weight:600}
     .muted{color:var(--muted)}
-    /* جدول اسکرول‌پذیر افقی برای ستون‌های زیاد */
-    .table-wrap{overflow-x:auto;margin-top:8px}
+    .dbg{margin-top:10px;font-size:12px;color:#374151;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px;display:none}
+    .badge{color:#6b7280}
+    .btn{padding:6px 10px;border:1px solid var(--border);background:#fff;border-radius:8px;cursor:pointer}
   </style>
 </head>
 <body>
@@ -32,11 +33,14 @@
     <div class="card">
       <div class="title">
         <h1>صورت وضعیت پیمانکار</h1>
-        <div id="projectBadge" class="muted"></div>
+        <div>
+          <span id="projectBadge" class="badge"></span>
+          <button id="toggleDbg" class="btn" style="margin-inline-start:8px">دیباگ</button>
+        </div>
       </div>
 
       <!-- فیلترها در یک ردیف -->
-      <div class="row" id="filtersRow">
+      <div class="row">
         <div class="field">
           <label>پیمانکار</label>
           <select id="contractorSelect"><option value="">همه پیمانکاران</option></select>
@@ -78,71 +82,126 @@
           </tbody>
         </table>
       </div>
+
+      <div id="dbg" class="dbg"></div>
     </div>
   </div>
 
   <script>
-    /* ================= کلیدهای واقعی (مطابق INDEX8 - Copy13) ================= */
-    const K_SETTINGS    = "swiny.drilling.settings.v5";
-    const K_HOLES       = "swiny.drilling.holes.v5";
-    const K_RATES       = "swiny.drilling.rates.v5";
-    const K_CONTRACTORS = "swiny.drilling.contractors.v5";
-
-    /* ================= ابزارها ================= */
+    /* ---------- ابزار ---------- */
     const toFa = v => new Intl.NumberFormat('fa-IR').format(Number(v||0));
-    const ls = (k,d)=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } };
-    const jalaliToISO = j => j; // اگر مبدل جلالی دارید همین‌جا جایگزین کنید
+    const lsSafe = k => { try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : null }catch(e){ return null } };
+    const jalaliToISO = j => j; // اگر مبدل جلالی دارید اینجا جایگزین کنید
     const todayISO = () => new Date().toISOString();
 
-    // از settings پروژهٔ فعال را می‌خوانیم
-    const settings = ls(K_SETTINGS, {});
-    const currentProjectId = settings?.projectId || "";
-    if (currentProjectId) {
-      document.getElementById('projectBadge').textContent = "پروژه: " + currentProjectId;
+    /* ---------- کشف خودکار کلیدها ---------- */
+    function discoverData(){
+      const keys = Object.keys(localStorage);
+      let settings = null, settingsKey = '';
+      let holes = null, holesKey = '';
+      let rates = null, ratesKey = '';
+      let contractors = null, contractorsKey = '';
+
+      for (const k of keys){
+        const val = lsSafe(k);
+        if (!val) continue;
+
+        // settings: شیء با projectId
+        if (!settings && typeof val === 'object' && !Array.isArray(val) && ('projectId' in val)){
+          settings = val; settingsKey = k;
+        }
+
+        // holes: آرایه از آبجکت با rateId و (contractorId/contractor) و یکی از projectId/date/dateInitial
+        if (!holes && Array.isArray(val) && val.length && typeof val[0]==='object'){
+          const s = val[0];
+          const likeHole = ('rateId' in s) && (('contractorId' in s) || ('contractor' in s)) && (('projectId' in s) || ('date' in s) || ('dateInitial' in s));
+          if (likeHole){ holes = val; holesKey = k; }
+        }
+
+        // rates: آرایه از آبجکت با name و price/unitPrice (احتمالا projectId هم دارد)
+        if (!rates && Array.isArray(val) && val.length && typeof val[0]==='object'){
+          const s = val[0];
+          const likeRate = ('name' in s || 'title' in s) && ('price' in s || 'unitPrice' in s);
+          if (likeRate){ rates = val; ratesKey = k; }
+        }
+
+        // contractors: آرایه از آبجکت که id/code/company/name داشته باشد
+        if (!contractors && Array.isArray(val) && val.length && typeof val[0]==='object'){
+          const s = val[0];
+          const likeC = ('id' in s || 'code' in s) && ('company' in s || 'name' in s || 'title' in s);
+          if (likeC){ contractors = val; contractorsKey = k; }
+        }
+      }
+
+      // اگر پیمانکارها نبود، از داخل holes می‌سازیم
+      if (!contractors && Array.isArray(holes)){
+        const set = new Map();
+        holes.forEach(h=>{
+          const id = h.contractorId || h.contractor || h.contractorCode;
+          const label = h.contractorName || h.contractorTitle || id;
+          if (id) set.set(id, {id, company: label||id});
+        });
+        contractors = Array.from(set.values());
+        contractorsKey = '(derived from holes)';
+      }
+
+      return {settings, settingsKey, holes, holesKey, rates, ratesKey, contractors, contractorsKey};
     }
 
-    // داده‌ها را می‌خوانیم و بر اساس projectId فیلتر می‌کنیم (دقیقاً مثل پنل)
-    const allHoles = ls(K_HOLES, []);
-    const allRates = ls(K_RATES, []);
-    const allContractors = ls(K_CONTRACTORS, []);
+    function filterByProject(arr, pid){
+      if (!pid || !Array.isArray(arr)) return Array.isArray(arr) ? arr : [];
+      return arr.filter(x => x && x.projectId === pid);
+    }
 
-    const holes = Array.isArray(allHoles)
-      ? (currentProjectId ? allHoles.filter(h => h.projectId === currentProjectId) : allHoles) : [];
+    function unitPriceForTitle(rates, title, today){
+      const cand = (rates||[]).filter(r => r && (r.name===title || r.title===title));
+      if (!cand.length) return 0;
+      cand.sort((a,b)=> new Date(a.effective||a.date||0) - new Date(b.effective||b.date||0));
+      const last = cand[cand.length-1];
+      return Number(last.price || last.unitPrice || 0);
+    }
 
-    const rates = Array.isArray(allRates)
-      ? (currentProjectId ? allRates.filter(r => r.projectId === currentProjectId) : allRates) : [];
+    /* ---------- بارگذاری ---------- */
+    const D = discoverData();
 
-    const contractors = Array.isArray(allContractors)
-      ? (currentProjectId ? allContractors.filter(c => c.projectId === currentProjectId) : allContractors) : [];
+    const currentProjectId = D.settings?.projectId || "";
+    document.getElementById('projectBadge').textContent = currentProjectId ? ("پروژه: "+currentProjectId) : "";
 
+    const holes = filterByProject(D.holes, currentProjectId);
+    const rates = filterByProject(D.rates, currentProjectId);
     const rateById = Object.fromEntries((rates||[]).map(r=>[r.id, r]));
+    const contractors = filterByProject(D.contractors, currentProjectId) || D.contractors || [];
 
-    // اگر لیست پیمانکاران ذخیره نشده، از روی چاله‌ها بساز
-    const finalContractors = (contractors && contractors.length) ? contractors : (() => {
-      const set = new Map();
-      (holes||[]).forEach(h=>{
-        const id = h.contractorId || h.contractor || h.contractorCode;
-        const label = h.contractorName || h.contractorTitle || id;
-        if (id) set.set(id, {id, company: label||id});
-      });
-      return Array.from(set.values());
-    })();
-
-    // پر کردن سِلکت پیمانکار
+    // فهرست پیمانکاران
     const contractorSelect = document.getElementById('contractorSelect');
-    finalContractors.forEach(c=>{
-      const opt=document.createElement('option');
+    (contractors||[]).forEach(c=>{
+      const opt = document.createElement('option');
       opt.value = c.id || c.code || c.company || '';
       opt.textContent = c.company || c.name || c.title || opt.value;
       contractorSelect.appendChild(opt);
     });
 
-    // رویدادها
+    // دیباگ
+    const dbgEl = document.getElementById('dbg');
+    const toggleDbg = document.getElementById('toggleDbg');
+    toggleDbg.addEventListener('click', ()=>{
+      const on = dbgEl.style.display!=='block';
+      dbgEl.style.display = on ? 'block' : 'none';
+      if (on){
+        dbgEl.innerHTML =
+          `<div><b>settings</b> ← <code>${escapeHtml(D.settingsKey||'-')}</code></div>`+
+          `<div><b>holes</b> ← <code>${escapeHtml(D.holesKey||'-')}</code> (rows: ${holes?.length||0})</div>`+
+          `<div><b>rates</b> ← <code>${escapeHtml(D.ratesKey||'-')}</code> (rows: ${rates?.length||0})</div>`+
+          `<div><b>contractors</b> ← <code>${escapeHtml(D.contractorsKey||'-')}</code> (rows: ${(contractors||[]).length})</div>`;
+      }
+    });
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])) }
+
+    // ایونت‌ها
     const startEl = document.getElementById('startJ');
     const endEl = document.getElementById('endJ');
     const checkedEl = document.getElementById('checkedOnly');
     const allEl = document.getElementById('allPoints');
-
     checkedEl.addEventListener('change', ()=>{ if(checkedEl.checked) allEl.checked=false; render(); });
     allEl.addEventListener('change', ()=>{ if(allEl.checked) checkedEl.checked=false; render(); });
     startEl.addEventListener('input', render);
@@ -151,15 +210,6 @@
 
     function isCheckedHole(h){
       return !!(h && (h.depthChecked1!=null || h.jDateChecked || h.dateChecked || h.checked===true));
-    }
-
-    // قیمت واحد: بر اساس عنوان آیتم نرخ، آخرین/فعال‌ترین قیمت را پیدا می‌کنیم
-    function unitPriceForTitle(rates, title, today){
-      const cand = (rates||[]).filter(r => r && (r.name===title || r.title===title));
-      if (!cand.length) return 0;
-      cand.sort((a,b)=> new Date(a.effective||a.date||0) - new Date(b.effective||b.date||0));
-      const last = cand[cand.length-1];
-      return Number(last.price || last.unitPrice || 0);
     }
 
     function render(){
@@ -204,7 +254,7 @@
         function cell(v){ const td=document.createElement('td'); td.textContent=v; return td }
         tr.appendChild(cell(toFa(i+1)));
         tr.appendChild(cell(title));
-        tr.appendChild(cell('نقطه')));
+        tr.appendChild(cell('نقطه'));
         tr.appendChild(cell(toFa(count)));
         tr.appendChild(cell(toFa(unitPrice)));
         tr.appendChild(cell(toFa(total)));
