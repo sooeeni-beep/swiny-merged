@@ -7,8 +7,10 @@
   <style>
     :root{--bg:#f6f7fb; --card:#fff; --border:#e5e7eb; --muted:#6B7280; --th:#f3f4f6;}
     *{box-sizing:border-box}
+    html,body{height:100%}
     body{margin:0;background:var(--bg);color:#111;font-family:tahoma, sans-serif}
-    .wrap{max-width:1200px;margin:16px auto;padding:12px}
+    /* تمام‌عرض */
+    .wrap{width:100%;margin:0 auto;padding:16px}
     .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
     .title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
     .title h1{font-size:18px;margin:0}
@@ -18,9 +20,11 @@
     select,input[type=text]{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
     input[type=checkbox]{transform:scale(1.1)}
     table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid var(--border);padding:8px;text-align:center}
+    th,td{border:1px solid var(--border);padding:8px;text-align:center; white-space:nowrap;}
     thead th{background:var(--th);font-weight:600}
     .muted{color:var(--muted)}
+    /* جدول اسکرول‌پذیر افقی برای ستون‌های زیاد */
+    .table-wrap{overflow-x:auto;margin-top:8px}
   </style>
 </head>
 <body>
@@ -57,7 +61,7 @@
         </div>
       </div>
 
-      <div style="overflow-x:auto;margin-top:8px">
+      <div class="table-wrap">
         <table style="min-width:900px">
           <thead>
             <tr>
@@ -78,72 +82,67 @@
   </div>
 
   <script>
-    /* ================= پیکربندی مسیر داده‌ها =================
-       اگر کلیدهای localStorage شما متفاوت است، فقط این‌ها را عوض کن. */
-    const KEY_ACTIVE_PROJECT = "swiny_active_project_id";
-    const KEYS_HOLES_BY_PROJECT   = ["swiny_holes_by_project"];
-    const KEYS_HOLES              = ["swiny_holes"];
-    const KEYS_RATES_BY_PROJECT   = ["swiny_rates_by_project"];
-    const KEYS_RATES              = ["swiny_rates"];
-    const KEYS_CONTRACTORS_BY_PROJECT = ["swiny_contractors_by_project"];
-    const KEYS_CONTRACTORS        = ["swiny_contractors"];
+    /* ================= کلیدهای واقعی (مطابق INDEX8 - Copy13) ================= */
+    const K_SETTINGS    = "swiny.drilling.settings.v5";
+    const K_HOLES       = "swiny.drilling.holes.v5";
+    const K_RATES       = "swiny.drilling.rates.v5";
+    const K_CONTRACTORS = "swiny.drilling.contractors.v5";
 
-    /* ================= توابع مشترک ================= */
+    /* ================= ابزارها ================= */
     const toFa = v => new Intl.NumberFormat('fa-IR').format(Number(v||0));
     const ls = (k,d)=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } };
     const jalaliToISO = j => j; // اگر مبدل جلالی دارید همین‌جا جایگزین کنید
     const todayISO = () => new Date().toISOString();
-    function getActiveProjectId(){ try{ return JSON.parse(localStorage.getItem(KEY_ACTIVE_PROJECT)) || localStorage.getItem(KEY_ACTIVE_PROJECT) || "" }catch(e){ return "" } }
-    function firstNonEmpty(arr){ for(const x of arr){ if(x!=null) return x } return null }
-    function readByProject(keys, pid){ for(const k of keys){ const obj=ls(k,null); if(obj && typeof obj==='object' && pid && obj[pid]) return obj[pid]; } return null; }
-    function readArray(keys){ for(const k of keys){ const arr=ls(k,null); if(Array.isArray(arr)) return arr; } return null; }
 
-    function loadHoles(pid){ return firstNonEmpty([ readByProject(KEYS_HOLES_BY_PROJECT, pid), readArray(KEYS_HOLES), [] ]) || []; }
-    function loadRates(pid){ return firstNonEmpty([ readByProject(KEYS_RATES_BY_PROJECT, pid), readArray(KEYS_RATES), [] ]) || []; }
-    function loadContractors(pid){
-      const list = firstNonEmpty([ readByProject(KEYS_CONTRACTORS_BY_PROJECT, pid), readArray(KEYS_CONTRACTORS), [] ]);
-      if (Array.isArray(list) && list.length) return list;
-      // fallback: استخراج از نقاط
+    // از settings پروژهٔ فعال را می‌خوانیم
+    const settings = ls(K_SETTINGS, {});
+    const currentProjectId = settings?.projectId || "";
+    if (currentProjectId) {
+      document.getElementById('projectBadge').textContent = "پروژه: " + currentProjectId;
+    }
+
+    // داده‌ها را می‌خوانیم و بر اساس projectId فیلتر می‌کنیم (دقیقاً مثل پنل)
+    const allHoles = ls(K_HOLES, []);
+    const allRates = ls(K_RATES, []);
+    const allContractors = ls(K_CONTRACTORS, []);
+
+    const holes = Array.isArray(allHoles)
+      ? (currentProjectId ? allHoles.filter(h => h.projectId === currentProjectId) : allHoles) : [];
+
+    const rates = Array.isArray(allRates)
+      ? (currentProjectId ? allRates.filter(r => r.projectId === currentProjectId) : allRates) : [];
+
+    const contractors = Array.isArray(allContractors)
+      ? (currentProjectId ? allContractors.filter(c => c.projectId === currentProjectId) : allContractors) : [];
+
+    const rateById = Object.fromEntries((rates||[]).map(r=>[r.id, r]));
+
+    // اگر لیست پیمانکاران ذخیره نشده، از روی چاله‌ها بساز
+    const finalContractors = (contractors && contractors.length) ? contractors : (() => {
       const set = new Map();
-      (window.__holes||[]).forEach(h=>{
+      (holes||[]).forEach(h=>{
         const id = h.contractorId || h.contractor || h.contractorCode;
         const label = h.contractorName || h.contractorTitle || id;
         if (id) set.set(id, {id, company: label||id});
       });
       return Array.from(set.values());
-    }
+    })();
 
-    function unitPriceForTitle(rates, title, today){
-      // پیدا کردن قیمت واحدِ فعال بر اساس نام آیتم نرخ
-      const cand = (rates||[]).filter(r => r && (r.name===title || r.title===title));
-      if (!cand.length) return 0;
-      cand.sort((a,b)=> new Date(a.effective||a.date||0) - new Date(b.effective||b.date||0));
-      const last = cand[cand.length-1];
-      return Number(last.price || last.unitPrice || 0);
-    }
-
-    /* ================= بارگذاری داده‌ها ================= */
-    const pid = getActiveProjectId();
-    document.getElementById('projectBadge').textContent = pid ? ('پروژه: '+pid) : '';
-    window.__holes = loadHoles(pid);
-    const rates = loadRates(pid);
-    const rateById = Object.fromEntries((rates||[]).map(r=>[r.id, r]));
-    const contractors = loadContractors(pid);
-
-    // پر کردن لیست پیمانکاران
+    // پر کردن سِلکت پیمانکار
     const contractorSelect = document.getElementById('contractorSelect');
-    contractors.forEach(c=>{
+    finalContractors.forEach(c=>{
       const opt=document.createElement('option');
       opt.value = c.id || c.code || c.company || '';
       opt.textContent = c.company || c.name || c.title || opt.value;
       contractorSelect.appendChild(opt);
     });
 
-    // ایونت‌ها
+    // رویدادها
     const startEl = document.getElementById('startJ');
     const endEl = document.getElementById('endJ');
     const checkedEl = document.getElementById('checkedOnly');
     const allEl = document.getElementById('allPoints');
+
     checkedEl.addEventListener('change', ()=>{ if(checkedEl.checked) allEl.checked=false; render(); });
     allEl.addEventListener('change', ()=>{ if(allEl.checked) checkedEl.checked=false; render(); });
     startEl.addEventListener('input', render);
@@ -152,6 +151,15 @@
 
     function isCheckedHole(h){
       return !!(h && (h.depthChecked1!=null || h.jDateChecked || h.dateChecked || h.checked===true));
+    }
+
+    // قیمت واحد: بر اساس عنوان آیتم نرخ، آخرین/فعال‌ترین قیمت را پیدا می‌کنیم
+    function unitPriceForTitle(rates, title, today){
+      const cand = (rates||[]).filter(r => r && (r.name===title || r.title===title));
+      if (!cand.length) return 0;
+      cand.sort((a,b)=> new Date(a.effective||a.date||0) - new Date(b.effective||b.date||0));
+      const last = cand[cand.length-1];
+      return Number(last.price || last.unitPrice || 0);
     }
 
     function render(){
@@ -163,8 +171,9 @@
       const endISO   = endEl.value   ? jalaliToISO(endEl.value.trim())   : '';
       const today = todayISO();
 
-      let filtered = Array.isArray(window.__holes) ? window.__holes.slice() : [];
-      if (cId) filtered = filtered.filter(h => (h.groupType==='contractor' || !h.groupType) && (h.contractorId===cId || h.contractor===cId));
+      let filtered = Array.isArray(holes) ? holes.slice() : [];
+      if (cId) filtered = filtered.filter(h => (h.groupType==='contractor' || !h.groupType) &&
+                                              (h.contractorId===cId || h.contractor===cId));
       if (startISO) filtered = filtered.filter(h => (h.dateInitial||h.date||'') >= startISO);
       if (endISO)   filtered = filtered.filter(h => (h.dateInitial||h.date||'') <= endISO);
       if (checkedEl.checked) filtered = filtered.filter(isCheckedHole);
@@ -195,7 +204,7 @@
         function cell(v){ const td=document.createElement('td'); td.textContent=v; return td }
         tr.appendChild(cell(toFa(i+1)));
         tr.appendChild(cell(title));
-        tr.appendChild(cell('نقطه'));
+        tr.appendChild(cell('نقطه')));
         tr.appendChild(cell(toFa(count)));
         tr.appendChild(cell(toFa(unitPrice)));
         tr.appendChild(cell(toFa(total)));
