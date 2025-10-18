@@ -9,6 +9,7 @@
     *{box-sizing:border-box}
     html,body{height:100%}
     body{margin:0;background:var(--bg);color:#111;font-family:tahoma, sans-serif}
+    /* تمام‌عرض */
     .wrap{width:100%;margin:0 auto;padding:16px}
     .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
     .title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
@@ -46,11 +47,11 @@
           <select id="contractorSelect"><option value="">همه پیمانکاران</option></select>
         </div>
         <div class="field">
-          <label>از تاریخ (جلالی/میلادی)</label>
+          <label id="startLabel">از تاریخ</label>
           <input id="startJ" type="text" placeholder="YYYY-MM-DD"/>
         </div>
         <div class="field">
-          <label>تا تاریخ (جلالی/میلادی)</label>
+          <label id="endLabel">تا تاریخ</label>
           <input id="endJ" type="text" placeholder="YYYY-MM-DD"/>
         </div>
         <div class="field">
@@ -92,30 +93,27 @@
     const toFa = v => new Intl.NumberFormat('fa-IR').format(Number(v||0));
     const lsSafe = k => { try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : null }catch(e){ return null } };
     const todayISO = () => new Date().toISOString();
-    // ورودی تاریخ: 1403-08-01 (جلالی) یا 2025/02/05 (میلادی) → رشته‌ی استاندارد جهت مقایسه
-    function normalizeDateStr(s){
-      if(!s) return '';
-      s = String(s).trim();
-      // اسلش را خط تیره کن
-      s = s.replace(/\//g,'-');
-      // اگر شبیه 1403-.. یا 13../14.. باشد، همان را برگردان و با jDate ها مقایسه می‌کنیم
-      return s;
-    }
-    function rowDateISO(h){
-      // تاریخ‌های ممکن داخل داده‌ها
-      const jd = h.jDate || h.jDateInitial || h.jdate || h.j_date;
-      const gd = h.dateInitial || h.date || h.gDate || h.gdate;
-      // استانداردسازی جهت مقایسه رشته‌ای
-      return (gd ? String(gd).replace(/\//g,'-') : '') || (jd ? String(jd).replace(/\//g,'-') : '');
+
+    /* تاریخ */
+    function digitsOnly(s){ return String(s||'').replace(/[^0-9]/g,''); }
+    function normalizeInputDate(s){ return digitsOnly(s); }
+    function pickPrimaryDateField(holes){
+      const fields = ['jDate','jDateInitial','dateInitial','date'];
+      const score = {};
+      (holes||[]).slice(0,100).forEach(h=>{
+        fields.forEach(f=>{ if(h&&h[f]) score[f]=(score[f]||0)+1; });
+      });
+      let best = fields[0], mx=-1;
+      for(const f of fields){ const v=score[f]||0; if(v>mx){mx=v; best=f;} }
+      return best;
     }
 
-    /* ---------- کشف خودکار کلیدها (هم‌مسیر با دیباگ شما) ---------- */
+    /* ---------- کشف خودکار کلیدها ---------- */
     function discoverData(){
       const keys = Object.keys(localStorage);
 
       // SETTINGS
       let settings = null, settingsKey = '';
-      // اولویت با swiny.settings.v1
       if (localStorage.getItem('swiny.settings.v1')) {
         settings = lsSafe('swiny.settings.v1'); settingsKey = 'swiny.settings.v1';
       }
@@ -136,28 +134,29 @@
           const v = lsSafe(k);
           if (Array.isArray(v) && v.length && typeof v[0]==='object'){
             const s = v[0];
-            const likeHole = ('rateId' in s) && (('contractorId' in s) || ('contractor' in s)) && (('projectId' in s) || ('date' in s) || ('dateInitial' in s));
+            const likeHole = ('rateId' in s) && (('contractorId' in s) || ('contractor' in s)) && (('projectId' in s) || ('date' in s) || ('dateInitial' in s) || ('jDate' in s) || ('jDateInitial' in s));
             if (likeHole){ holes = v; holesKey = k; break; }
           }
         }
       }
 
-      // RATES: هر کلیدی که در نامش rate/price باشد
+      // RATES
       let rates = null, ratesKey = '';
       for (const k of keys){
-        if (!/rate|price|fee/i.test(k)) continue;
+        if (!/(^|[.\-_])(rate|price|fee|tariff|unit)([.\-_]|$)/i.test(k)) continue;
         const v = lsSafe(k);
         if (Array.isArray(v) && v.length && typeof v[0]==='object'){
           const s = v[0];
-          const likeRate = ('name' in s || 'title' in s) && ('price' in s || 'unitPrice' in s);
+          const likeRate = ('name' in s || 'title' in s) && ('price' in s || 'unitPrice' in s || 'versions' in s);
           if (likeRate){ rates = v; ratesKey = k; break; }
         }
       }
 
-      // CONTRACTORS: هر کلیدی که در نامش contractor باشد
+      // CONTRACTORS: کلیدهایی که contractor دارند (نه projects)
       let contractors = null, contractorsKey = '';
       for (const k of keys){
         if (!/contractor/i.test(k)) continue;
+        if (/project/i.test(k)) continue;
         const v = lsSafe(k);
         if (Array.isArray(v) && v.length && typeof v[0]==='object'){
           const s = v[0];
@@ -165,7 +164,6 @@
           if (likeC){ contractors = v; contractorsKey = k; break; }
         }
       }
-      // اگر نبود از holes بساز
       if (!contractors && Array.isArray(holes)){
         const set = new Map();
         holes.forEach(h=>{
@@ -185,12 +183,29 @@
       return arr.filter(x => x && x.projectId === pid);
     }
 
-    function unitPriceForTitle(rates, title, today){
-      const cand = (rates||[]).filter(r => r && (r.name===title || r.title===title));
-      if (!cand.length) return 0;
-      cand.sort((a,b)=> new Date(a.effective||a.date||0) - new Date(b.effective||b.date||0));
-      const last = cand[cand.length-1];
-      return Number(last.price || last.unitPrice || 0);
+    function mostRecentPriceFromRateObject(rateObj, todayIso){
+      if (!rateObj) return 0;
+      if (typeof rateObj === 'number') return rateObj;
+      if (rateObj.price || rateObj.unitPrice) return Number(rateObj.price || rateObj.unitPrice || 0);
+      const vers = rateObj.versions;
+      if (Array.isArray(vers) && vers.length){
+        const t = new Date(todayIso);
+        const valid = vers.filter(v => !v.effective || new Date(String(v.effective).replace(/\//g,'-')) <= t);
+        const pick = valid.length ? valid[valid.length-1] : vers[vers.length-1];
+        return Number(pick?.price || pick?.unitPrice || 0);
+      }
+      return 0;
+    }
+
+    function unitPriceFor(rateRecOrArray, title, todayIso){
+      if (!rateRecOrArray) return 0;
+      if (Array.isArray(rateRecOrArray)){
+        const cand = rateRecOrArray.filter(r => r && (r.name===title || r.title===title));
+        if (!cand.length) return 0;
+        cand.sort((a,b)=> new Date(String(a.effective||a.date||0).replace(/\//g,'-')) - new Date(String(b.effective||b.date||0).replace(/\//g,'-')));
+        return mostRecentPriceFromRateObject(cand[cand.length-1], todayIso);
+      }
+      return mostRecentPriceFromRateObject(rateRecOrArray, todayIso);
     }
 
     /* ---------- بارگذاری ---------- */
@@ -199,22 +214,27 @@
     const currentProjectId = D.settings?.projectId || "";
     document.getElementById('projectBadge').textContent = currentProjectId ? ("پروژه: "+currentProjectId) : "";
 
-    const holes = filterByProject(D.holes, currentProjectId);
-    const rates = filterByProject(D.rates, currentProjectId);
-    const rateById = Object.fromEntries((rates||[]).map(r=>[r.id, r]));
-    const contractors = filterByProject(D.contractors, currentProjectId) || D.contractors || [];
+    const holesAll = filterByProject(D.holes, currentProjectId);
+    const ratesAll = filterByProject(D.rates, currentProjectId);
+    const rateById = Object.fromEntries((ratesAll||[]).map(r=>[r.id, r]));
+    const contractorsAll = filterByProject(D.contractors, currentProjectId) || D.contractors || [];
 
-    // فهرست پیمانکاران (از تب پیمانکار/کلیدهای contractor-*)
+    const dateField = pickPrimaryDateField(holesAll);
+    if (dateField && /^j/.test(dateField)){
+      document.getElementById('startLabel').textContent = 'از تاریخ (جلالی)';
+      document.getElementById('endLabel').textContent = 'تا تاریخ (جلالی)';
+    } else {
+      document.getElementById('startLabel').textContent = 'از تاریخ (میلادی)';
+      document.getElementById('endLabel').textContent = 'تا تاریخ (میلادی)';
+    }
+
+    // سِلکت پیمانکار از تب پیمانکار
     const contractorSelect = document.getElementById('contractorSelect');
-    (contractors||[]).forEach(c=>{
-      const id = c.id || c.code || c.company || '';
-      const title = c.company || c.name || c.title || id;
-      if(!id) return;
-      const opt=document.createElement('option');
-      opt.value = id;
-      opt.textContent = title;
-      contractorSelect.appendChild(opt);
-    });
+    (contractorsAll||[])
+      .map(c=>({ id: c.id || c.code || c.company || '', title: c.company || c.name || c.title || (c.id||c.code||'') }))
+      .filter(c=>c.id)
+      .sort((a,b)=> a.title.localeCompare(b.title,'fa'))
+      .forEach(c=>{ const opt=document.createElement('option'); opt.value=c.id; opt.textContent=c.title; contractorSelect.appendChild(opt); });
 
     // دیباگ
     const dbgEl = document.getElementById('dbg');
@@ -225,9 +245,9 @@
       if (on){
         dbgEl.innerHTML =
           `<div><b>settings</b> ← <code>${escapeHtml(D.settingsKey||'-')}</code> (projectId: ${escapeHtml(currentProjectId||'-')})</div>`+
-          `<div><b>holes</b> ← <code>${escapeHtml(D.holesKey||'-')}</code> (rows: ${holes?.length||0})</div>`+
-          `<div><b>rates</b> ← <code>${escapeHtml(D.ratesKey||'-')}</code> (rows: ${rates?.length||0})</div>`+
-          `<div><b>contractors</b> ← <code>${escapeHtml(D.contractorsKey||'-')}</code> (rows: ${(contractors||[]).length})</div>`;
+          `<div><b>holes</b> ← <code>${escapeHtml(D.holesKey||'-')}</code> (rows: ${holesAll?.length||0}, dateField: ${dateField||'-'})</div>`+
+          `<div><b>rates</b> ← <code>${escapeHtml(D.ratesKey||'-')}</code> (rows: ${ratesAll?.length||0})</div>`+
+          `<div><b>contractors</b> ← <code>${escapeHtml(D.contractorsKey||'-')}</code> (rows: ${(contractorsAll||[]).length})</div>`;
       }
     });
     function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])) }
@@ -252,54 +272,59 @@
       tbody.innerHTML='';
 
       const cId = contractorSelect.value;
-      const startIn = normalizeDateStr(startEl.value);
-      const endIn   = normalizeDateStr(endEl.value);
+      const startIn = normalizeInputDate(startEl.value);
+      const endIn   = normalizeInputDate(endEl.value);
+      const todayIso = todayISO();
 
-      let filtered = Array.isArray(holes) ? holes.slice() : [];
+      let filtered = Array.isArray(holesAll) ? holesAll.slice() : [];
       if (cId) filtered = filtered.filter(h =>
         (h.groupType==='contractor' || !h.groupType) &&
-        (h.contractorId===cId || h.contractor===cId)
+        (h.contractorId===cId || h.contractor===cId || h.contractorCode===cId)
       );
 
-      if (startIn) filtered = filtered.filter(h=>{
-        const d = rowDateISO(h);
-        return d && d >= startIn;
-      });
-      if (endIn) filtered = filtered.filter(h=>{
-        const d = rowDateISO(h);
-        return d && d <= endIn;
-      });
+      if (dateField){
+        if (startIn) filtered = filtered.filter(h => {
+          const d = digitsOnly(h[dateField]);
+          return d && d >= startIn;
+        });
+        if (endIn) filtered = filtered.filter(h => {
+          const d = digitsOnly(h[dateField]);
+          return d && d <= endIn;
+        });
+      }
 
       if (checkedEl.checked) filtered = filtered.filter(isCheckedHole);
       else if (allEl.checked) filtered = filtered.filter(h => !isCheckedHole(h));
 
-      // گروه‌بندی بر اساس عنوان آیتم نرخ
-      const groups = {};
+      // گروه‌بندی بر اساس rateId (نمایش شرح = نام آیتم نرخ)
+      const groups = {}; // rateId -> {title, count}
       filtered.forEach(h=>{
-        const rate = rateById[h.rateId];
-        const title = rate?.name || rate?.title || h.rateItemTitle || h.itemTitle || h.item || h.title || '—';
-        (groups[title] = groups[title] || []).push(h);
+        const rId = h.rateId || '__no_rate__';
+        const rateRec = rateById[rId];
+        const title = rateRec?.name || rateRec?.title || h.rateItemTitle || h.itemTitle || h.item || '—';
+        if (!groups[rId]) groups[rId] = { title, count:0, rateRec };
+        groups[rId].count += 1;
       });
 
-      const titles = Object.keys(groups).sort((a,b)=> a.localeCompare(b,'fa'));
-      if (!titles.length){
+      const rows = Object.values(groups);
+      if (!rows.length){
         const tr=document.createElement('tr'); const td=document.createElement('td');
         td.colSpan=6; td.className='muted'; td.textContent='— موردی برای نمایش نیست —';
         tr.appendChild(td); tbody.appendChild(tr); return;
       }
 
-      titles.forEach((title,i)=>{
-        const list=groups[title];
-        const count=list.length;
-        const unitPrice = unitPriceForTitle(rates, title, todayISO()); // اگر rates پیدا نشود، 0 می‌شود
-        const total = count * unitPrice;
+      rows.sort((a,b)=> (a.title||'').localeCompare(b.title||'', 'fa'));
+
+      rows.forEach((g,i)=>{
+        const unitPrice = unitPriceFor(g.rateRec || ratesAll, g.title, todayIso);
+        const total = unitPrice * g.count;
 
         const tr=document.createElement('tr');
         function cell(v){ const td=document.createElement('td'); td.textContent=v; return td }
         tr.appendChild(cell(toFa(i+1)));
-        tr.appendChild(cell(title));
+        tr.appendChild(cell(g.title||'—'));
         tr.appendChild(cell('نقطه'));
-        tr.appendChild(cell(toFa(count)));
+        tr.appendChild(cell(toFa(g.count)));
         tr.appendChild(cell(toFa(unitPrice)));
         tr.appendChild(cell(toFa(total)));
         tbody.appendChild(tr);
