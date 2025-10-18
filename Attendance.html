@@ -19,6 +19,7 @@
     select,input{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
     .btn{padding:8px 12px;border:1px solid var(--border);background:#fff;border-radius:10px;cursor:pointer}
     .muted{color:#6B7280}
+    .hint{font-size:12px;color:#6b7280;margin:6px 0}
     .table-wrap{overflow-x:auto;margin-top:8px}
     table{border-collapse:collapse;width:100%}
     th,td{border:1px solid var(--border);padding:6px 8px;text-align:center;white-space:nowrap}
@@ -80,6 +81,8 @@
         <button class="btn" id="exportBtn">خروجی CSV</button>
       </div>
 
+      <div class="hint" id="usersHint"></div>
+
       <div class="table-wrap">
         <table id="attTable">
           <thead id="thead"></thead>
@@ -97,36 +100,24 @@
     const lsSet = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
     const toFa = v => new Intl.NumberFormat('fa-IR').format(Number(v||0));
     const escapeHtml = s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-
-    /* ===== تقویم جلالی (ساده) ===== */
     const JMONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
-    // تشخیص کبیسه جلالی (تقریب استاندارد)
-    function isJLeap(jy){
-      // الگوریتم: سال‌های 33تایی با الگوی خاص (ساده‌شده)
-      const breaks = [-61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210, 1635, 2060, 2097, 2192, 2262, 2324, 2394, 2456, 3178];
-      let bl = breaks.length, jp = breaks[0], jm, jump=0, leap=0, n=0, i=1;
-      if (jy < jp || jy >= breaks[bl-1]) return false;
-      for (; i < bl; i++) {
-        jm = breaks[i];
-        jump = jm - jp;
-        if (jy < jm) break;
-        jp = jm;
-      }
-      n = jy - jp;
-      if (jump - n < 6) n = n - jump + Math.floor((jump + 4) / 33) * 33;
-      leap = Math.floor(((n + 1) % 33) - 1);
-      if (leap === -1) leap = 32;
-      return (leap === 0 || leap === 4 || leap === 8 || leap === 12 || leap === 16 || leap === 20 || leap === 24 || leap === 28);
-    }
-    function jMonthLen(jy, jm){ // jm: 1..12
-      if (jm<=6) return 31;
-      if (jm<=11) return 30;
-      return isJLeap(jy) ? 30 : 29; // اسفند
-    }
 
-    /* ===== کشف داده‌ها (settings + users) ===== */
+    /* ===== تقویم جلالی (کبیسه و طول ماه‌ها) ===== */
+    function isJLeap(jy){
+      const breaks=[-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
+      let bl=breaks.length,jp=breaks[0],jm,jump=0,leap=0,n=0,i=1;
+      if (jy<jp || jy>=breaks[bl-1]) return false;
+      for(; i<bl; i++){ jm=breaks[i]; jump=jm-jp; if(jy<jm) break; jp=jm; }
+      n=jy-jp; if (jump-n<6) n=n-jump+Math.floor((jump+4)/33)*33;
+      leap=Math.floor(((n+1)%33)-1); if (leap===-1) leap=32;
+      return (leap===0||leap===4||leap===8||leap===12||leap===16||leap===20||leap===24||leap===28);
+    }
+    function jMonthLen(jy,jm){ if(jm<=6) return 31; if(jm<=11) return 30; return isJLeap(jy)?30:29; }
+
+    /* ===== کشف settings و users ===== */
     function discover(){
       const keys = Object.keys(localStorage);
+      // settings
       let settings=null, settingsKey='';
       if (localStorage.getItem('swiny.settings.v1')){ settings=lsGet('swiny.settings.v1'); settingsKey='swiny.settings.v1'; }
       if(!settings){
@@ -135,22 +126,40 @@
           if (v && typeof v==='object' && !Array.isArray(v) && 'projectId' in v){ settings=v; settingsKey=k; break; }
         }
       }
+      // users: الگوهای گسترده‌تر
       let users=null, usersKey='';
+      const rx=/(^|[.\-_])(user|users|staff|personnel|employee|member|members|operator|operators|account|accounts|people|person|crew|team)([.\-_]|$)/i;
       for (const k of keys){
-        if (!/(^|[.\-_])(user|users|staff|personnel|employee)([.\-_]|$)/i.test(k)) continue;
+        if (!rx.test(k)) continue;
         const v=lsGet(k);
         if (Array.isArray(v) && v.length && typeof v[0]==='object'){ users=v; usersKey=k; break; }
       }
       return {settings, settingsKey, users, usersKey};
     }
-    function normalizeUser(u){
-      const code = u.code || u.id || u.empCode || u.personnelCode || u.username || '';
-      const first = u.firstName || u.fname || u.name || '';
-      const last  = u.lastName || u.lname || u.family || u.surname || (u.name && u.name.split(' ').slice(1).join(' ')) || '';
-      const full  = u.fullName ? u.fullName : ((first || last) ? [first,last].filter(Boolean).join(' ') : (u.name||''));
-      const pos   = u.position || u.role || u.title || u.jobTitle || '';
+
+    // ساخت کد موقت اگر کد نبود
+    function synthCode(u, idx){
+      const base = (u.fullName||u.name||'user').toString().trim().replace(/\s+/g,'_').slice(0,24) || 'user';
+      return `code:${base}_${idx+1}`;
+    }
+
+    // نرمال‌سازی کاربر (پشتیبانی از کلیدهای فارسی)
+    function normalizeUser(u, idx){
+      // فارسی‌ها
+      const faFirst = u['نام'] || u['نام کوچک'];
+      const faLast  = u['نام خانوادگی'] || u['فامیلی'];
+      const faFull  = u['نام و نام خانوادگی'] || u['نام‌ونام‌خانوادگی'];
+      const faCode  = u['کد پرسنلی'] || u['کدپرسنلی'] || u['کد_پرسنلی'];
+      const faPos   = u['سمت'] || u['عنوان شغلی'];
+
+      const code = u.code || u.id || u.empCode || u.personnelCode || u.username || faCode || '';
+      const first = u.firstName || u.fname || u.name || faFirst || '';
+      const last  = u.lastName || u.lname || u.family || u.surname || faLast || (u.name && u.name.split(' ').slice(1).join(' ')) || '';
+      const full  = u.fullName ? u.fullName : (faFull ? faFull : ((first||last)? [first,last].filter(Boolean).join(' ') : (u.name||'')));
+      const pos   = u.position || u.role || u.title || u.jobTitle || faPos || '';
       const pid   = u.projectId || '';
-      return { code, fullName: full, position: pos, projectId: pid };
+      const finalCode = (code && String(code).trim()) ? String(code) : synthCode({fullName:full,name:u.name}, idx);
+      return { code: finalCode, rawCode: code||'', fullName: (full||'').trim(), position: (pos||'').trim(), projectId: pid };
     }
 
     /* ===== ذخیره ماتریسی ===== */
@@ -172,17 +181,20 @@
     const currentProjectId = D.settings?.projectId || '';
     if (currentProjectId) document.getElementById('projectBadge').textContent = 'پروژه: '+currentProjectId;
 
-    const allUsers = Array.isArray(D.users) ? D.users.map(normalizeUser) : [];
-    const users = currentProjectId ? allUsers.filter(u => !u.projectId || u.projectId===currentProjectId) : allUsers;
+    const allUsersRaw = Array.isArray(D.users) ? D.users : [];
+    const allUsers = allUsersRaw.map((u,idx)=> normalizeUser(u, idx));
+    // فیلتر پروژه؛ اگر تهی شد، فیلتر پروژه نادیده گرفته می‌شود تا چیزی نمایش داده شود
+    let users = currentProjectId ? allUsers.filter(u => !u.projectId || u.projectId===currentProjectId) : allUsers;
+    if (!users.length) users = allUsers.slice();
 
-    // سال/ماه پیش‌فرض: از تاریخ میلادی سیستم یه مپ ساده به جلالی لازم بود؛ برای سادگی از ۱۴۰۰ تا ۱۴۱۰ می‌گذاریم و پیش‌فرض ۱۴۰۴.
+    // سال/ماه شمسی
     const yearSel = document.getElementById('yearSel');
     for(let y=1398; y<=1410; y++){ const opt=document.createElement('option'); opt.value=y; opt.textContent=y; yearSel.appendChild(opt); }
     yearSel.value = 1404;
 
     const monthSel = document.getElementById('monthSel');
     for(let m=1; m<=12; m++){ const opt=document.createElement('option'); opt.value=m; opt.textContent=JMONTHS[m-1]; monthSel.appendChild(opt); }
-    monthSel.value = 7; // پیش‌فرض مهر
+    monthSel.value = 7; // مهر
 
     // بازه کاری
     const rangeStart = document.getElementById('rangeStart');
@@ -192,26 +204,27 @@
       let o2=document.createElement('option'); o2.value=d; o2.textContent=d; rangeEnd.appendChild(o2);
     }
     rangeStart.value = 21;
-    rangeEnd.value = 20;
+    rangeEnd.value   = 20;
 
     const searchByEl = document.getElementById('searchBy');
     const searchInputEl = document.getElementById('searchInput');
-    document.getElementById('refreshBtn').addEventListener('click', render);
-
-    const editing = new Set(); // codes
 
     const thead = document.getElementById('thead');
     const tbody = document.getElementById('tbody');
+    const usersHint = document.getElementById('usersHint');
+
+    function showUsersHint(){
+      const src = D.users ? (D.users ? D.users.length : 0) : 0;
+      usersHint.textContent = `کلید کاربران: ${D.users ? D.usersKey : '— یافت نشد —'} | کل کاربران کشف‌شده: ${allUsers.length} | پس از فیلتر پروژه/جستجو: ${users.length}`;
+    }
 
     function makeHeader(jYear, jMonth, daysCount, startDay, endDay){
       thead.innerHTML='';
       const tr=document.createElement('tr');
       ['ردیف','کد پرسنلی','نام و نام خانوادگی','سمت'].forEach(h=>{ const th=document.createElement('th'); th.textContent=h; tr.appendChild(th); });
       for(let d=1; d<=daysCount; d++){
-        const th=document.createElement('th');
-        th.textContent=d;
-        // غیرفعال خارج از بازه
-        if (!dayInWindow(d, daysCount, startDay, endDay)) { th.classList.add('cell-disabled'); }
+        const th=document.createElement('th'); th.textContent=d;
+        if (!dayInWindow(d, daysCount, startDay, endDay)) th.classList.add('cell-disabled');
         tr.appendChild(th);
       }
       const thAct=document.createElement('th'); thAct.textContent='اقدام'; tr.appendChild(thAct);
@@ -219,9 +232,7 @@
     }
 
     function dayInWindow(d, daysCount, startDay, endDay){
-      // اگر end >= start → [start..end]
       if (endDay >= startDay) return d>=startDay && d<=endDay;
-      // wrap: [start..daysCount] ∪ [1..end]
       return (d>=startDay && d<=daysCount) || (d>=1 && d<=endDay);
     }
 
@@ -250,12 +261,17 @@
       else if (val==='A') td.classList.add('st-A');
     }
 
+    const editing = new Set(); // codes
+
     function render(){
       const jYear = Number(yearSel.value);
       const jMonth = Number(monthSel.value);
       const daysCount = jMonthLen(jYear, jMonth);
       const startDay = Math.min(Math.max(1, Number(rangeStart.value)), 31);
-      const endDay = Math.min(Math.max(1, Number(rangeEnd.value)), 31);
+      const endDay   = Math.min(Math.max(1, Number(rangeEnd.value)), 31);
+
+      // هینت بالای جدول
+      showUsersHint();
 
       makeHeader(jYear, jMonth, daysCount, startDay, endDay);
       tbody.innerHTML='';
@@ -331,20 +347,19 @@
       });
     }
 
-    // Export CSV based on selected window (with wrap)
+    // CSV با درج دوره و بازه
     document.getElementById('exportBtn').addEventListener('click', ()=>{
       const jYear = Number(yearSel.value);
       const jMonth = Number(monthSel.value);
       const daysCount = jMonthLen(jYear, jMonth);
       const startDay = Math.min(Math.max(1, Number(rangeStart.value)), 31);
-      const endDay = Math.min(Math.max(1, Number(rangeEnd.value)), 31);
+      const endDay   = Math.min(Math.max(1, Number(rangeEnd.value)), 31);
 
       const windowDays = [];
       if (endDay >= startDay){
         for(let d=startDay; d<=endDay; d++) windowDays.push({m:jMonth, d});
       } else {
         for(let d=startDay; d<=daysCount; d++) windowDays.push({m:jMonth, d});
-        // به ماه بعد (wrap)
         const nextMonth = jMonth===12 ? 1 : jMonth+1;
         const nextYear  = jMonth===12 ? (jYear+1) : jYear;
         const nextDaysCount = jMonthLen(nextYear, nextMonth);
@@ -353,7 +368,7 @@
 
       const store = loadMatrix();
       const rows = [];
-      // دو خط هدر
+
       let toMonth = (endDay >= startDay) ? jMonth : (jMonth===12 ? 1 : jMonth+1);
       let toYear  = (endDay >= startDay) ? jYear  : (jMonth===12 ? jYear+1 : jYear);
       const periodTitle = `دوره: ${jYear}/${String(jMonth).padStart(2,'0')}/${String(startDay).padStart(2,'0')} تا ${toYear}/${String(toMonth).padStart(2,'0')}/${String(endDay).padStart(2,'0')}`;
@@ -361,10 +376,8 @@
       const head = ['کد','نام و نام خانوادگی','سمت', ...windowDays.map(x=> `${x.m}/${String(x.d).padStart(2,'0')}`)];
       rows.push(head); // خط ۲
 
-      // داده‌ها
       const list = users.slice().sort((a,b)=> (a.fullName||'').localeCompare(b.fullName||'', 'fa'));
       list.forEach(u=>{
-        // ردیف‌های این کاربر را از ماه فعلی و (اگر wrap شده) ماه بعد بخوانیم
         const rowNow  = findRow(store, currentProjectId, u.code, jYear, jMonth) || {days:{}};
         const nextM   = (jMonth===12 ? 1 : jMonth+1);
         const nextY   = (jMonth===12 ? jYear+1 : jYear);
@@ -377,16 +390,13 @@
         rows.push([u.code||'', u.fullName||'', u.position||'', ...vals]);
       });
 
-      const csv = rows.map(r => r.map(v => {
-        const s = String(v==null?'':v).replace(/"/g,'""');
-        return `"${s}"`;
-      }).join(',')).join('\n');
+      const csv = rows.map(r => r.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
 
       const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `attendance_${jYear}-${jMonth}_${String(startDay).padStart(2,'0')}_to_${String(endDay).padStart(2,'0')}.csv`;
+      a.download = `attendance_${jYear}-${String(jMonth).padStart(2,'0')}_${String(startDay).padStart(2,'0')}_to_${String(endDay).padStart(2,'0')}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -401,6 +411,13 @@
     document.getElementById('rangeEnd').addEventListener('change', render);
     document.getElementById('searchBy').addEventListener('change', render);
     document.getElementById('searchInput').addEventListener('input', render);
+
+    // پروژه در نوار عنوان
+    (function initProjectBadge(){
+      const b=document.getElementById('projectBadge');
+      const s=lsGet('swiny.settings.v1');
+      if (s && s.projectId){ b.textContent='پروژه: '+s.projectId; }
+    })();
 
     // اولین رندر
     render();
