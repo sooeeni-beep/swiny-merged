@@ -27,6 +27,7 @@
     .cell-day{min-width:34px;font-weight:600;letter-spacing:0.2px;user-select:none}
     .cell-day.editable{cursor:pointer}
     .cell-disabled{background:#f1f1f1;color:#9ca3af}
+    /* رنگ‌بندی وضعیت‌ها */
     .st-P{background:#dcfce7}  /* سبز */
     .st-R{background:#fef9c3}  /* زرد */
     .st-A{background:#fee2e2}  /* قرمز */
@@ -46,6 +47,7 @@
         </div>
       </div>
 
+      <!-- کنترل‌ها -->
       <div class="row">
         <div class="field">
           <label>جستجو بر اساس</label>
@@ -93,11 +95,17 @@
   </div>
 
   <script>
+    /* ===== ثابت‌ها ===== */
+    const USERS_KEY = 'swiny.drilling.users.v1';        // ← کلید قطعی کاربران
+    const K_ATT     = 'swiny.attendance.matrix.v1';      // ← ماتریس حضور/غیاب
+
+    /* ===== ابزار عمومی ===== */
     const lsGet=(k,d=null)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
     const lsSet=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
     const toFa=v=>new Intl.NumberFormat('fa-IR').format(Number(v||0));
     const JMONTHS=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
 
+    /* ===== تقویم جلالی ===== */
     function isJLeap(jy){
       const breaks=[-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
       let bl=breaks.length,jp=breaks[0],jm,jump=0,leap=0,n=0,i=1;
@@ -109,69 +117,32 @@
     }
     const jMonthLen=(jy,jm)=> jm<=6?31: jm<=11?30: (isJLeap(jy)?30:29);
 
-    // --- کشف settings و users (با حذف صریح attendance) ---
-    function discover(){
-      const keys=Object.keys(localStorage);
-      // settings
-      let settings=null, settingsKey='';
-      if(localStorage.getItem('swiny.settings.v1')){settings=lsGet('swiny.settings.v1');settingsKey='swiny.settings.v1'}
-      if(!settings){
-        for(const k of keys){
-          const v=lsGet(k);
-          if(v && typeof v==='object' && !Array.isArray(v) && 'projectId' in v){settings=v;settingsKey=k;break}
-        }
-      }
+    /* ===== users & settings ===== */
+    const settings = lsGet('swiny.settings.v1', null);
+    const currentProjectId = settings?.projectId || '';
+    const usersRaw = lsGet(USERS_KEY, []);   // ← فقط از این کلید
+    // نگاشت فارسی/انگلیسی به فرم واحد
+    function normalizeUser(u, idx){
+      const fullFa  = u['نام و نام خانوادگی'] || u['نام‌ونام‌خانوادگی'];
+      const firstFa = u['نام'];
+      const lastFa  = u['نام خانوادگی'];
+      const codeFa  = u['شماره پرسنلی'] || u['کد پرسنلی'] || u['کدپرسنلی'] || u['کد_پرسنلی'];
+      const posFa   = u['سمت'] || u['پست سازمانی'] || u['نقش'];
+      const pidFa   = u['پروژه'] || u['کد پروژه'];
 
-      // users: فقط آرایه‌هایی که نام + کد دارند و شبیه attendance نیستند
-      let users=null, usersKey='';
-      const codeFields=['personnelCode','empCode','employeeCode','شماره پرسنلی','کد پرسنلی','کدپرسنلی','کد_پرسنلی','code'];
-      const nameFields=['fullName','نام و نام خانوادگی','نام‌ونام‌خانوادگی','نام','نام خانوادگی'];
-      const roleFields=['position','role','title','jobTitle','سمت','پست سازمانی','نقش'];
+      const code = u.personnelNo || u.personnelCode || u.empCode || u.employeeCode || codeFa || u.code || '';
+      const full = (u.fullName || fullFa || ((firstFa||'') + (lastFa?(' '+lastFa):''))).trim();
+      const pos  = (u.position || u.jobTitle || u.role || posFa || '').trim();
+      const pid  = (u.projectId || pidFa || '').toString().trim();
 
-      function isAttendanceArray(arr){
-        if(!Array.isArray(arr) || !arr.length || typeof arr[0]!=='object') return false;
-        const s=arr[0];
-        return ('jYear' in s) || ('jMonth' in s) || ('days' in s) || /(^|[.\-_])attendance([.\-_]|$)/i.test(JSON.stringify(s)) ;
-      }
-      function looksLikeUsersArray(arr){
-        if(!Array.isArray(arr) || !arr.length || typeof arr[0]!=='object') return false;
-        if(isAttendanceArray(arr)) return false;
-        const sample=arr.slice(0,Math.min(arr.length,10));
-        let withCode=0, withName=0;
-        for(const o of sample){
-          if(codeFields.some(f=>f in o)) withCode++;
-          if(nameFields.some(f=>f in o)) withName++;
-        }
-        return withCode>=Math.ceil(sample.length*0.6) && withName>=1;
-      }
-
-      for(const k of keys){
-        if(/^swiny\.attendance/i.test(k)) continue; // حذف کلیدهای attendance
-        const v=lsGet(k);
-        if(looksLikeUsersArray(v)){users=v;usersKey=k;break}
-      }
-      return {settings, settingsKey, users, usersKey};
+      const finalCode = (code && String(code).trim()) ? String(code) : `code:${idx+1}`;
+      return { code: finalCode, fullName: full, position: pos, projectId: pid };
     }
+    const allUsers = Array.isArray(usersRaw) ? usersRaw.map((u,i)=>normalizeUser(u,i)) : [];
+    let users = currentProjectId ? allUsers.filter(u=>!u.projectId || u.projectId===currentProjectId) : allUsers;
+    if (!users.length) users = allUsers.slice();
 
-    function synthCode(full,idx){
-      const base=(full||'user').toString().trim().replace(/\s+/g,'_').slice(0,24)||'user';
-      return `code:${base}_${idx+1}`;
-    }
-    function normalizeUser(u,idx){
-      const fullFa=u['نام و نام خانوادگی']||u['نام‌ونام‌خانوادگی'];
-      const firstFa=u['نام']; const lastFa=u['نام خانوادگی'];
-      const codeFa=u['شماره پرسنلی']||u['کد پرسنلی']||u['کدپرسنلی']||u['کد_پرسنلی'];
-      const posFa=u['سمت']||u['پست سازمانی']||u['نقش'];
-      const pidFa=u['پروژه']||u['کد پروژه'];
-      const code=u.personnelCode||u.empCode||u.employeeCode||codeFa||u.code||'';
-      const full=(u.fullName||fullFa||((firstFa||'')+(lastFa?(' '+lastFa):''))).trim();
-      const pos =(u.position||u.role||u.title||u.jobTitle||posFa||'').trim();
-      const pid =(u.projectId||pidFa||'').toString().trim();
-      const finalCode=(code&&String(code).trim())?String(code):synthCode(full,idx);
-      return {code:finalCode, fullName:full, position:pos, projectId:pid};
-    }
-
-    const K_ATT='swiny.attendance.matrix.v1';
+    /* ===== ذخیره ماتریسی ===== */
     const loadMatrix=()=>{const a=lsGet(K_ATT,[]);return Array.isArray(a)?a:[]};
     const saveMatrix=a=>lsSet(K_ATT,a);
     const findRow=(a,pid,code,jy,jm)=>a.find(x=>(x.projectId||'')===(pid||'') && x.code===code && x.jYear===jy && x.jMonth===jm);
@@ -182,14 +153,8 @@
       return r;
     }
 
-    const D=discover();
-    const currentProjectId=D.settings?.projectId||'';
-    if(currentProjectId) document.getElementById('projectBadge').textContent='پروژه: '+currentProjectId;
-
-    const allUsersRaw=Array.isArray(D.users)?D.users:[];
-    const allUsers=allUsersRaw.map((u,i)=>normalizeUser(u,i));
-    let users=currentProjectId? allUsers.filter(u=>!u.projectId || u.projectId===currentProjectId) : allUsers;
-    if(!users.length) users=allUsers.slice();
+    /* ===== UI wiring ===== */
+    if (currentProjectId) document.getElementById('projectBadge').textContent = 'پروژه: '+currentProjectId;
 
     const yearSel=document.getElementById('yearSel');
     for(let y=1398;y<=1410;y++){const o=document.createElement('option');o.value=y;o.textContent=y;yearSel.appendChild(o)}
@@ -213,7 +178,7 @@
     const usersHint=document.getElementById('usersHint');
 
     function showUsersHint(){
-      usersHint.textContent=`کلید کاربران: ${D.users ? D.usersKey : '— یافت نشد —'} | کل: ${allUsers.length} | پس از فیلتر: ${users.length}`;
+      usersHint.textContent = `کلید کاربران: ${USERS_KEY} | کل: ${allUsers.length} | پس از فیلتر: ${users.length}`;
     }
     function dayInWindow(d,days,start,end){
       if(end>=start) return d>=start && d<=end;
@@ -222,7 +187,7 @@
     function makeHeader(jy,jm,days,start,end){
       thead.innerHTML='';
       const tr=document.createElement('tr');
-      ['ردیف','کد پرسنلی','نام و نام خانوادگی','سمت'].forEach(h=>{const th=document.createElement('th');th.textContent=h;tr.appendChild(th)});
+      ['ردیف','کد پرسنلی','نام و نام خانوادگی','سمت'].forEach(h=>{const th=document.createElement('th'); th.textContent=h; tr.appendChild(th)});
       for(let d=1; d<=days; d++){
         const th=document.createElement('th'); th.textContent=d;
         if(!dayInWindow(d,days,start,end)) th.classList.add('cell-disabled');
@@ -235,6 +200,7 @@
       const by=searchByEl.value, q=(searchInputEl.value||'').trim().toLowerCase();
       if(!q) return list; return list.filter(u=>(u[by]||'').toString().toLowerCase().includes(q));
     }
+    // چرخه: '' -> P -> R -> A -> AS -> ''
     function cycle(v){ if(!v) return 'P'; if(v==='P') return 'R'; if(v==='R') return 'A'; if(v==='A') return 'AS'; return '' }
     function applyStatusClass(td,v){
       td.classList.remove('st-P','st-R','st-A','st-AS');
@@ -259,6 +225,7 @@
         td.colSpan=4+days+1; td.className='muted'; td.textContent='— موردی برای نمایش نیست —';
         tr.appendChild(td); tbody.appendChild(tr); return;
       }
+
       const store=loadMatrix();
 
       list.forEach((u,idx)=>{
@@ -291,6 +258,7 @@
       });
     }
 
+    // خروجی CSV با BOM و درج عنوان دوره
     document.getElementById('exportBtn').addEventListener('click',()=>{
       const jy=Number(yearSel.value), jm=Number(monthSel.value);
       const days=jMonthLen(jy,jm);
@@ -321,7 +289,7 @@
       });
 
       const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
-      const bom='\uFEFF';
+      const bom='\uFEFF'; // برای اکسل فارسی
       const blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8;'});
       const url=URL.createObjectURL(blob); const a=document.createElement('a');
       a.href=url; a.download=`attendance_${jy}-${String(jm).padStart(2,'0')}_${String(start).padStart(2,'0')}_to_${String(end).padStart(2,'0')}.csv`;
@@ -332,7 +300,10 @@
       const el=document.getElementById(id); el.addEventListener(id==='searchInput'?'input':'change', render);
     });
 
+    // عنوان پروژه
     (function(){ const s=lsGet('swiny.settings.v1'); if(s?.projectId) document.getElementById('projectBadge').textContent='پروژه: '+s.projectId; })();
+
+    // نخستین رندر
     render();
   </script>
 </body>
