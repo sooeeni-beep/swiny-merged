@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>حضور و غیاب</title>
+  <style>
+    :root{--bg:#f6f7fb; --card:#fff; --border:#e5e7eb; --muted:#6B7280; --th:#f3f4f6}
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:#111;font-family:tahoma, sans-serif}
+    .wrap{width:100%;margin:0 auto;padding:16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+    .title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .title h1{font-size:18px;margin:0}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+    .field{display:flex;gap:6px;align-items:center}
+    .field label{font-size:12px;color:#374151}
+    select,input{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
+    .btn{padding:8px 12px;border:1px solid var(--border);background:#fff;border-radius:10px;cursor:pointer}
+    .muted{color:var(--muted)}
+    .table-wrap{overflow-x:auto;margin-top:8px}
+    table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid var(--border);padding:8px;text-align:center;white-space:nowrap}
+    thead th{background:var(--th);font-weight:600}
+    .badge{color:#6b7280}
+    .dbg{margin-top:10px;font-size:12px;color:#374151;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px;display:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="title">
+        <h1>حضور و غیاب</h1>
+        <div>
+          <span id="projectBadge" class="badge"></span>
+          <button id="toggleDbg" class="btn">دیباگ</button>
+        </div>
+      </div>
+
+      <!-- فرم ورود -->
+      <div class="row">
+        <div class="field">
+          <label>کد پرسنلی</label>
+          <select id="userSelect"><option value="">انتخاب کاربر</option></select>
+        </div>
+        <div class="field">
+          <label>نام و نام خانوادگی</label>
+          <input id="fullName" type="text" placeholder="—" readonly/>
+        </div>
+        <div class="field">
+          <label>سمت</label>
+          <input id="position" type="text" placeholder="—" readonly/>
+        </div>
+        <div class="field">
+          <label>وضعیت</label>
+          <select id="statusSelect">
+            <option value="present">حضور</option>
+            <option value="leave">مرخصی</option>
+            <option value="sick">استعلاجی</option>
+          </select>
+        </div>
+        <button id="saveBtn" class="btn">ثبت</button>
+      </div>
+
+      <!-- فیلتر تاریخ و جدول -->
+      <div class="row">
+        <div class="field">
+          <label>تاریخ (YYYY-MM-DD)</label>
+          <input id="dateFilter" type="text" placeholder="امروز به‌صورت پیش‌فرض"/>
+        </div>
+        <button id="refreshBtn" class="btn">بازخوانی</button>
+      </div>
+
+      <div class="table-wrap">
+        <table style="min-width:820px">
+          <thead>
+          <tr>
+            <th>ردیف</th>
+            <th>کد پرسنلی</th>
+            <th>نام و نام خانوادگی</th>
+            <th>سمت</th>
+            <th>تاریخ</th>
+            <th>وضعیت</th>
+          </tr>
+          </thead>
+          <tbody id="attBody">
+            <tr><td colspan="6" class="muted">— موردی برای نمایش نیست —</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="dbg" class="dbg"></div>
+    </div>
+  </div>
+
+  <script>
+    /* ====== ابزار ====== */
+    const lsSafe = k => { try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null }catch(e){ return null } };
+    const setLs   = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
+    const toFa = v => new Intl.NumberFormat('fa-IR').format(Number(v||0));
+    const today = ()=> {
+      const d=new Date();
+      const m = ('0'+(d.getMonth()+1)).slice(-2);
+      const day=('0'+d.getDate()).slice(-2);
+      return `${d.getFullYear()}-${m}-${day}`;
+    };
+    const escapeHtml=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+    /* ====== کشف داده‌ها از LocalStorage ======
+       - settings: swiny.settings.v1 یا هر شیء دارای projectId
+       - users: هر کلیدی که شامل user/users/staff/personnel/employee باشد
+       ساختار کاربر: سعی می‌کنیم id/code, firstName/lastName/name, role/position/title را تشخیص دهیم. */
+    function discover(){
+      const keys = Object.keys(localStorage);
+      let settings=null, settingsKey='';
+      if (localStorage.getItem('swiny.settings.v1')) {
+        settings=lsSafe('swiny.settings.v1'); settingsKey='swiny.settings.v1';
+      }
+      if(!settings){
+        for(const k of keys){
+          const v=lsSafe(k);
+          if (v && typeof v==='object' && !Array.isArray(v) && 'projectId' in v){ settings=v; settingsKey=k; break; }
+        }
+      }
+
+      let users=null, usersKey='';
+      for(const k of keys){
+        if (!/(^|[.\-_])(user|users|staff|personnel|employee)([.\-_]|$)/i.test(k)) continue;
+        const v=lsSafe(k);
+        if (Array.isArray(v) && v.length && typeof v[0]==='object'){ users=v; usersKey=k; break; }
+      }
+
+      return {settings, settingsKey, users, usersKey};
+    }
+
+    function normalizeUser(u){
+      const code = u.code || u.id || u.empCode || u.personnelCode || u.username || '';
+      const first = u.firstName || u.fname || u.name || '';
+      const last  = u.lastName || u.lname || u.family || u.surname || (u.name && u.name.split(' ').slice(1).join(' ')) || '';
+      const full  = (u.fullName) ? u.fullName : ((first || last) ? [first,last].filter(Boolean).join(' ') : (u.name||''));
+      const pos   = u.position || u.role || u.title || u.jobTitle || '';
+      const pid   = u.projectId || '';
+      return { code, fullName: full, position: pos, projectId: pid };
+    }
+
+    /* ====== بارگذاری ====== */
+    const D = discover();
+    const currentProjectId = D.settings?.projectId || '';
+    if (currentProjectId) document.getElementById('projectBadge').textContent = 'پروژه: '+currentProjectId;
+
+    const usersAll = Array.isArray(D.users) ? D.users.map(normalizeUser) : [];
+    const users = currentProjectId ? usersAll.filter(u => !u.projectId || u.projectId===currentProjectId) : usersAll;
+
+    // پر کردن سلکت کاربران
+    const userSelect = document.getElementById('userSelect');
+    users
+      .filter(u => u.code)
+      .sort((a,b)=> (a.fullName||'').localeCompare(b.fullName||'', 'fa'))
+      .forEach(u => {
+        const opt=document.createElement('option');
+        opt.value = u.code;
+        opt.textContent = `${u.code} — ${u.fullName||'بدون‌نام'}`;
+        userSelect.appendChild(opt);
+      });
+
+    // اتصال فیلدهای نمایش نام/سمت با انتخاب کاربر
+    const fullNameEl = document.getElementById('fullName');
+    const positionEl = document.getElementById('position');
+    userSelect.addEventListener('change', ()=>{
+      const u = users.find(x => x.code == userSelect.value);
+      fullNameEl.value = u?.fullName || '';
+      positionEl.value = u?.position || '';
+    });
+
+    // کلید ذخیرهٔ حضور و غیاب
+    const K_ATT = 'swiny.attendance.v1';
+
+    function loadAttendance(){
+      const arr = lsSafe(K_ATT) || [];
+      if (!Array.isArray(arr)) return [];
+      return currentProjectId ? arr.filter(a => a.projectId===currentProjectId) : arr;
+    }
+    function saveAttendanceRow(row){
+      const all = lsSafe(K_ATT) || [];
+      all.push(row);
+      setLs(K_ATT, all);
+    }
+
+    // ثبت
+    const statusSelect = document.getElementById('statusSelect');
+    document.getElementById('saveBtn').addEventListener('click', ()=>{
+      const code = userSelect.value;
+      if (!code){ alert('لطفاً کاربر را انتخاب کنید'); return; }
+      const u = users.find(x => x.code == code) || {};
+      const rec = {
+        projectId: currentProjectId || null,
+        code: u.code || '',
+        fullName: u.fullName || '',
+        position: u.position || '',
+        status: statusSelect.value,   // present | leave | sick
+        date: document.getElementById('dateFilter').value || today(),
+        createdAt: new Date().toISOString()
+      };
+      saveAttendanceRow(rec);
+      render();
+    });
+
+    // جدول
+    const attBody = document.getElementById('attBody');
+    function render(){
+      attBody.innerHTML = '';
+      const dateVal = document.getElementById('dateFilter').value || today();
+      const rows = loadAttendance().filter(r => (r.date||'') === dateVal);
+
+      if (!rows.length){
+        const tr=document.createElement('tr'); const td=document.createElement('td');
+        td.colSpan=6; td.className='muted'; td.textContent='— موردی برای نمایش نیست —';
+        tr.appendChild(td); attBody.appendChild(tr); return;
+      }
+
+      rows.forEach((r,i)=>{
+        const tr=document.createElement('tr');
+        function cell(v){ const td=document.createElement('td'); td.textContent=v; return td }
+        tr.appendChild(cell(toFa(i+1)));
+        tr.appendChild(cell(r.code||''));
+        tr.appendChild(cell(r.fullName||''));
+        tr.appendChild(cell(r.position||''));
+        tr.appendChild(cell(r.date||''));
+        tr.appendChild(cell(
+          r.status==='present' ? 'حضور' :
+          r.status==='leave'   ? 'مرخصی' :
+          r.status==='sick'    ? 'استعلاجی' : '—'
+        ));
+        attBody.appendChild(tr);
+      });
+    }
+
+    // پیش‌فرض تاریخ = امروز
+    document.getElementById('dateFilter').value = today();
+    document.getElementById('refreshBtn').addEventListener('click', render);
+
+    // دیباگ
+    const dbgEl = document.getElementById('dbg');
+    document.getElementById('toggleDbg').addEventListener('click', ()=>{
+      const on = dbgEl.style.display!=='block';
+      dbgEl.style.display = on ? 'block' : 'none';
+      if (on){
+        dbgEl.innerHTML =
+          `<div><b>settings</b> ← <code>${escapeHtml(D.settings ? (D.settingsKey||'?') : '—')}</code> (projectId: ${escapeHtml(currentProjectId||'-')})</div>`+
+          `<div><b>users</b> ← <code>${escapeHtml(D.users ? (D.usersKey||'?') : '—')}</code> (rows: ${users?.length||0})</div>`+
+          `<div><b>attendance</b> ← <code>swiny.attendance.v1</code> (rows: ${(lsSafe('swiny.attendance.v1')||[]).length})</div>`;
+      }
+    });
+
+    // اولین رندر
+    render();
+  </script>
+</body>
+</html>
