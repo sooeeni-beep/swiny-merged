@@ -1388,6 +1388,7 @@ function HamburgerMenu({
             <div className="menu-grid">
               <ItemBtn onClick={() => setTab("sv_contractor")}>صورت وضعیت پیمانکار</ItemBtn>
               <ItemBtn onClick={() => setTab("sv_company")}>صورت وضعیت شرکت</ItemBtn>
+              <ItemBtn onClick={() => setTab('attendance')}>حضور و غیاب</ItemBtn>
             </div>
     
           </>
@@ -1730,7 +1731,17 @@ function HamburgerMenu({
                 </Card>
               )}
 
-
+              {tab === 'attendance' && (
+                <Card title="حضور و غیاب">
+                  <div style={{overflow: 'hidden', borderRadius: 12}}>
+                    <iframe
+                      src="Attendance.html"    // اگر فایل را در پوشه‌ای دیگر گذاشتی، مسیر نسبی را تغییر بده
+                      style={{ width: '100%', minHeight: '85vh', border: 'none' }}
+                      title="حضور و غیاب"
+                    />
+                  </div>
+                </Card>
+              )}
 
               {!projectRequiredBlocker && tab === "new" && (
                 <Card title="ثبت نقطه (پیمانکار)">
@@ -2300,19 +2311,6 @@ function HamburgerMenu({
                     settings={settings}
                     onUpdate={setSettings}
                   />
-                </Card>
-              )}
-
-
-              {tab === 'sv_contractor' && (
-                <Card title="صورت وضعیت پیمانکار">
-                  <div style={{overflow: 'hidden', borderRadius: 12}}>
-                    <iframe
-                      src="Invoice.html"
-                      style={{ width: '100%', minHeight: '85vh', border: 'none' }}
-                      title="صورت وضعیت پیمانکار"
-                    />
-                  </div>
                 </Card>
               )}
 
