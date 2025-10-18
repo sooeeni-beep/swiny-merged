@@ -30,8 +30,8 @@
     /* رنگ‌بندی وضعیت‌ها */
     .st-P{background:#dcfce7}  /* سبز */
     .st-R{background:#fef9c3}  /* زرد */
-    .st-AS{background:#f3e8ff} /* بنفش */
     .st-A{background:#fee2e2}  /* قرمز */
+    .st-AS{background:#f3e8ff} /* بنفش */
     .legend{font-size:12px;color:#374151;display:flex;gap:10px;align-items:center}
     .badge{color:#6b7280}
   </style>
@@ -43,7 +43,7 @@
         <h1>حضور و غیاب</h1>
         <div class="legend">
           <span class="badge" id="projectBadge"></span>
-          <span>کلیدها: <b>P</b>=حضور، <b>R</b>=مرخصی، <b>AS</b>=استعلاجی، <b>A</b>=غایب</span>
+          <span>کلیدها: <b>P</b>=حضور، <b>R</b>=مرخصی، <b>A</b>=غایب، <b>AS</b>=استعلاجی</span>
         </div>
       </div>
 
@@ -95,13 +95,13 @@
   </div>
 
   <script>
-    /* ==== ابزار عمومی ==== */
+    /* ==== ابزار ==== */
     const lsGet = (k,d=null)=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } };
     const lsSet = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
     const toFa = v => new Intl.NumberFormat('fa-IR').format(Number(v||0));
     const JMONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
 
-    /* ==== تقویم جلالی (طول ماه و کبیسه) ==== */
+    /* ==== تقویم جلالی ==== */
     function isJLeap(jy){
       const breaks=[-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
       let bl=breaks.length,jp=breaks[0],jm,jump=0,leap=0,n=0,i=1;
@@ -113,9 +113,10 @@
     }
     function jMonthLen(jy,jm){ if(jm<=6) return 31; if(jm<=11) return 30; return isJLeap(jy)?30:29; }
 
-    /* ==== کشف settings و users (حالت فارسی هم) ==== */
+    /* ==== کشف settings و users (فقط دیتایِ «کاربر» واقعی) ==== */
     function discover(){
       const keys = Object.keys(localStorage);
+
       // settings
       let settings=null, settingsKey='';
       if (localStorage.getItem('swiny.settings.v1')){ settings=lsGet('swiny.settings.v1'); settingsKey='swiny.settings.v1'; }
@@ -125,55 +126,57 @@
           if (v && typeof v==='object' && !Array.isArray(v) && 'projectId' in v){ settings=v; settingsKey=k; break; }
         }
       }
-      // users: الگوهای معروف
+
+      // users: فقط آرایه‌هایی که «واقعاً» فیلد کد پرسنلی دارند
       let users=null, usersKey='';
-      const rx=/(^|[.\-_])(user|users|staff|personnel|employee|member|members|operator|operators|account|accounts|people|person|crew|team)([.\-_]|$)/i;
-      for (const k of keys){
-        if (!rx.test(k)) continue;
-        const v=lsGet(k);
-        if (Array.isArray(v) && v.length && typeof v[0]==='object'){ users=v; usersKey=k; break; }
-      }
-      // اگر هنوز پیدا نشد، جستجوی هوشمند روی همه‌ی کلیدها (به‌خصوص فارسی)
-      if (!users){
-        for (const k of keys){
-          const v=lsGet(k);
-          if (!Array.isArray(v) || !v.length || typeof v[0] !== 'object') continue;
-          const s=v[0];
-          const hasName = ('fullName' in s) || ('name' in s) || ('نام' in s) || ('نام و نام خانوادگی' in s) || ('نام‌ونام‌خانوادگی' in s);
-          const hasCode = ('code' in s) || ('id' in s) || ('personnelCode' in s) || ('empCode' in s) || ('شماره پرسنلی' in s) || ('کد پرسنلی' in s);
-          const hasRole = ('position' in s) || ('role' in s) || ('title' in s) || ('سمت' in s) || ('پست سازمانی' in s) || ('نقش' in s);
-          if ((hasName && hasCode) || (hasCode && hasRole) || (hasName && hasRole)){ users=v; usersKey=k; break; }
+      const codeFields = ['personnelCode','empCode','employeeCode','شماره پرسنلی','کد پرسنلی','کدپرسنلی','کد_پرسنلی','code'];
+      const nameFields = ['fullName','نام و نام خانوادگی','نام‌ونام‌خانوادگی','نام','نام خانوادگی'];
+      const roleFields = ['position','role','title','jobTitle','سمت','پست سازمانی','نقش'];
+
+      function looksLikeUsersArray(arr){
+        if (!Array.isArray(arr) || !arr.length || typeof arr[0] !== 'object') return false;
+        // حداقل یکی از فیلدهای «کد پرسنلی» باید در اکثر اعضا باشد
+        const sample = arr.slice(0, Math.min(arr.length, 10));
+        let withCode = 0;
+        for (const o of sample){
+          if (codeFields.some(f => f in o)) withCode++;
         }
+        return withCode >= Math.ceil(sample.length*0.6);
       }
+
+      for (const k of keys){
+        const v=lsGet(k);
+        if (looksLikeUsersArray(v)){ users=v; usersKey=k; break; }
+      }
+
       return {settings, settingsKey, users, usersKey};
     }
 
-    function synthCode(u, idx){
-      const base = (u.fullName||u.name||'user').toString().trim().replace(/\s+/g,'_').slice(0,24) || 'user';
+    // کُد موقت اگر کاربر کد نداشت
+    function synthCode(full, idx){
+      const base = (full||'user').toString().trim().replace(/\s+/g,'_').slice(0,24) || 'user';
       return `code:${base}_${idx+1}`;
     }
 
-    // نرمال‌سازی: پشتیبانی از فارسی
+    // نرمال‌سازی کاربر (بدون fallback به u.name تا پروژه/شرکت اشتباهاً جایگزین نشود)
     function normalizeUser(u, idx){
-      const fa = {
-        first: u['نام'] || u['نام کوچک'],
-        last:  u['نام خانوادگی'] || u['فامیلی'],
-        full:  u['نام و نام خانوادگی'] || u['نام‌ونام‌خانوادگی'],
-        code:  u['شماره پرسنلی'] || u['کد پرسنلی'] || u['کدپرسنلی'] || u['کد_پرسنلی'],
-        pos:   u['سمت'] || u['پست سازمانی'] || u['نقش'],
-        pid:   u['پروژه'] || u['کد پروژه']
-      };
-      const code = u.code || u.id || u.personnelCode || u.empCode || u.username || fa.code || '';
-      const first = u.firstName || u.fname || u.name || fa.first || '';
-      const last  = u.lastName || u.lname || u.family || u.surname || fa.last || (u.name && u.name.split(' ').slice(1).join(' ')) || '';
-      const full  = u.fullName ? u.fullName : (fa.full ? fa.full : ((first||last)? [first,last].filter(Boolean).join(' ') : (u.name||'')));
-      const pos   = u.position || u.role || u.title || u.jobTitle || fa.pos || '';
-      const pid   = u.projectId || fa.pid || '';
-      const finalCode = (code && String(code).trim()) ? String(code) : synthCode({fullName:full,name:u.name}, idx);
-      return { code: finalCode, rawCode: code||'', fullName: (full||'').trim(), position: (pos||'').trim(), projectId: (pid||'').toString().trim() };
+      const fullFa  = u['نام و نام خانوادگی'] || u['نام‌ونام‌خانوادگی'];
+      const firstFa = u['نام'];
+      const lastFa  = u['نام خانوادگی'];
+      const codeFa  = u['شماره پرسنلی'] || u['کد پرسنلی'] || u['کدپرسنلی'] || u['کد_پرسنلی'];
+      const posFa   = u['سمت'] || u['پست سازمانی'] || u['نقش'];
+      const pidFa   = u['پروژه'] || u['کد پروژه'];
+
+      const code = u.personnelCode || u.empCode || codeFa || u.code || '';
+      const full = (u.fullName || fullFa || ((firstFa||'') + (lastFa? (' ' + lastFa) : ''))).trim();
+      const pos  = (u.position || u.role || u.title || u.jobTitle || posFa || '').trim();
+      const pid  = (u.projectId || pidFa || '').toString().trim();
+
+      const finalCode = (code && String(code).trim()) ? String(code) : synthCode(full, idx);
+      return { code: finalCode, fullName: full, position: pos, projectId: pid };
     }
 
-    /* ==== استوریج حضور/غیاب ماتریسی ==== */
+    /* ==== ذخیره ماتریسی ==== */
     const K_ATT = 'swiny.attendance.matrix.v1';
     function loadMatrix(){ const a=lsGet(K_ATT, []); return Array.isArray(a)? a : []; }
     function saveMatrix(arr){ lsSet(K_ATT, arr); }
@@ -194,7 +197,7 @@
 
     const allUsersRaw = Array.isArray(D.users) ? D.users : [];
     const allUsers = allUsersRaw.map((u,idx)=> normalizeUser(u, idx));
-    // فیلتر پروژه؛ اگر خالی شد، فیلتر پروژه نادیده گرفته شود تا نمایش داشته باشیم
+    // فیلتر پروژه؛ اگر خالی شد، نادیده بگیر تا نمایش داشته باشیم
     let users = currentProjectId ? allUsers.filter(u => !u.projectId || u.projectId===currentProjectId) : allUsers;
     if (!users.length) users = allUsers.slice();
 
@@ -202,6 +205,7 @@
     const yearSel = document.getElementById('yearSel');
     for(let y=1398; y<=1410; y++){ const opt=document.createElement('option'); opt.value=y; opt.textContent=y; yearSel.appendChild(opt); }
     yearSel.value = 1404;
+
     const monthSel = document.getElementById('monthSel');
     JMONTHS.forEach((nm,i)=>{ const opt=document.createElement('option'); opt.value=i+1; opt.textContent=nm; monthSel.appendChild(opt); });
     monthSel.value = 7; // مهر
@@ -217,10 +221,10 @@
 
     const searchByEl = document.getElementById('searchBy');
     const searchInputEl = document.getElementById('searchInput');
-
     const thead = document.getElementById('thead');
     const tbody = document.getElementById('tbody');
     const usersHint = document.getElementById('usersHint');
+
     function showUsersHint(){
       usersHint.textContent = `کلید کاربران: ${D.users ? D.usersKey : '— یافت نشد —'} | کل: ${allUsers.length} | پس از فیلتر: ${users.length}`;
     }
@@ -247,21 +251,23 @@
       if (!q) return list;
       return list.filter(u=> (u[by]||'').toString().toLowerCase().includes(q));
     }
+
+    // چرخه: '' -> P -> R -> A -> AS -> ''
     function cycle(val){
-      // '' -> P -> R -> AS -> A -> ''
       if (!val) return 'P';
       if (val==='P') return 'R';
-      if (val==='R') return 'AS';
-      if (val==='AS') return 'A';
+      if (val==='R') return 'A';
+      if (val==='A') return 'AS';
       return '';
     }
     function applyStatusClass(td, val){
-      td.classList.remove('st-P','st-R','st-AS','st-A');
+      td.classList.remove('st-P','st-R','st-A','st-AS');
       if (val==='P') td.classList.add('st-P');
       else if (val==='R') td.classList.add('st-R');
-      else if (val==='AS') td.classList.add('st-AS');
       else if (val==='A') td.classList.add('st-A');
+      else if (val==='AS') td.classList.add('st-AS');
     }
+
     const editing = new Set(); // codes
 
     function render(){
@@ -289,7 +295,7 @@
         function cell(v){ const td=document.createElement('td'); td.textContent=v; return td }
         tr.appendChild(cell(toFa(idx+1)));
         tr.appendChild(cell(u.code||''));
-        tr.appendChild(cell(u.fullName||''));
+        tr.appendChild(cell(u.fullName||''));   // ← فقط نام کاربر
         tr.appendChild(cell(u.position||''));
 
         const row = getOrCreateRow(store, currentProjectId, u.code, jYear, jMonth, daysCount);
@@ -346,7 +352,7 @@
       });
     }
 
-    // CSV با درج دوره
+    // CSV با BOM (UTF-8) و درج دوره
     document.getElementById('exportBtn').addEventListener('click', ()=>{
       const jYear = Number(yearSel.value);
       const jMonth = Number(monthSel.value);
@@ -367,6 +373,7 @@
 
       const store = loadMatrix();
       const rows = [];
+
       let toMonth = (endDay >= startDay) ? jMonth : (jMonth===12 ? 1 : jMonth+1);
       let toYear  = (endDay >= startDay) ? jYear  : (jMonth===12 ? jYear+1 : jYear);
       const periodTitle = `دوره: ${jYear}/${String(jMonth).padStart(2,'0')}/${String(startDay).padStart(2,'0')} تا ${toYear}/${String(toMonth).padStart(2,'0')}/${String(endDay).padStart(2,'0')}`;
@@ -385,7 +392,8 @@
       });
 
       const csv = rows.map(r => r.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
-      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const bom = '\uFEFF'; // برای اکسل فارسی
+      const blob = new Blob([bom + csv], {type:'text/csv;charset=utf-8;'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url;
       a.download = `attendance_${jYear}-${String(jMonth).padStart(2,'0')}_${String(startDay).padStart(2,'0')}_to_${String(endDay).padStart(2,'0')}.csv`;
