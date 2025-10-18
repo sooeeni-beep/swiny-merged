@@ -27,7 +27,6 @@
     .cell-day{min-width:34px;font-weight:600;letter-spacing:0.2px;user-select:none}
     .cell-day.editable{cursor:pointer}
     .cell-disabled{background:#f1f1f1;color:#9ca3af}
-    /* رنگ‌بندی وضعیت‌ها */
     .st-P{background:#dcfce7}  /* سبز */
     .st-R{background:#fef9c3}  /* زرد */
     .st-A{background:#fee2e2}  /* قرمز */
@@ -47,7 +46,6 @@
         </div>
       </div>
 
-      <!-- کنترل‌ها -->
       <div class="row">
         <div class="field">
           <label>جستجو بر اساس</label>
@@ -95,324 +93,246 @@
   </div>
 
   <script>
-    /* ==== ابزار ==== */
-    const lsGet = (k,d=null)=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } };
-    const lsSet = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
-    const toFa = v => new Intl.NumberFormat('fa-IR').format(Number(v||0));
-    const JMONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+    const lsGet=(k,d=null)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+    const lsSet=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+    const toFa=v=>new Intl.NumberFormat('fa-IR').format(Number(v||0));
+    const JMONTHS=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
 
-    /* ==== تقویم جلالی ==== */
     function isJLeap(jy){
       const breaks=[-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
       let bl=breaks.length,jp=breaks[0],jm,jump=0,leap=0,n=0,i=1;
       if (jy<jp || jy>=breaks[bl-1]) return false;
-      for(; i<bl; i++){ jm=breaks[i]; jump=jm-jp; if(jy<jm) break; jp=jm; }
-      n=jy-jp; if (jump-n<6) n=n-jump+Math.floor((jump+4)/33)*33;
-      leap=Math.floor(((n+1)%33)-1); if (leap===-1) leap=32;
+      for(;i<bl;i++){jm=breaks[i];jump=jm-jp;if(jy<jm)break;jp=jm}
+      n=jy-jp;if(jump-n<6)n=n-jump+Math.floor((jump+4)/33)*33;
+      leap=Math.floor(((n+1)%33)-1);if(leap===-1)leap=32;
       return (leap===0||leap===4||leap===8||leap===12||leap===16||leap===20||leap===24||leap===28);
     }
-    function jMonthLen(jy,jm){ if(jm<=6) return 31; if(jm<=11) return 30; return isJLeap(jy)?30:29; }
+    const jMonthLen=(jy,jm)=> jm<=6?31: jm<=11?30: (isJLeap(jy)?30:29);
 
-    /* ==== کشف settings و users (فقط دیتایِ «کاربر» واقعی) ==== */
+    // --- کشف settings و users (با حذف صریح attendance) ---
     function discover(){
-      const keys = Object.keys(localStorage);
-
+      const keys=Object.keys(localStorage);
       // settings
       let settings=null, settingsKey='';
-      if (localStorage.getItem('swiny.settings.v1')){ settings=lsGet('swiny.settings.v1'); settingsKey='swiny.settings.v1'; }
+      if(localStorage.getItem('swiny.settings.v1')){settings=lsGet('swiny.settings.v1');settingsKey='swiny.settings.v1'}
       if(!settings){
-        for (const k of keys){
+        for(const k of keys){
           const v=lsGet(k);
-          if (v && typeof v==='object' && !Array.isArray(v) && 'projectId' in v){ settings=v; settingsKey=k; break; }
+          if(v && typeof v==='object' && !Array.isArray(v) && 'projectId' in v){settings=v;settingsKey=k;break}
         }
       }
 
-      // users: فقط آرایه‌هایی که «واقعاً» فیلد کد پرسنلی دارند
+      // users: فقط آرایه‌هایی که نام + کد دارند و شبیه attendance نیستند
       let users=null, usersKey='';
-      const codeFields = ['personnelCode','empCode','employeeCode','شماره پرسنلی','کد پرسنلی','کدپرسنلی','کد_پرسنلی','code'];
-      const nameFields = ['fullName','نام و نام خانوادگی','نام‌ونام‌خانوادگی','نام','نام خانوادگی'];
-      const roleFields = ['position','role','title','jobTitle','سمت','پست سازمانی','نقش'];
+      const codeFields=['personnelCode','empCode','employeeCode','شماره پرسنلی','کد پرسنلی','کدپرسنلی','کد_پرسنلی','code'];
+      const nameFields=['fullName','نام و نام خانوادگی','نام‌ونام‌خانوادگی','نام','نام خانوادگی'];
+      const roleFields=['position','role','title','jobTitle','سمت','پست سازمانی','نقش'];
 
+      function isAttendanceArray(arr){
+        if(!Array.isArray(arr) || !arr.length || typeof arr[0]!=='object') return false;
+        const s=arr[0];
+        return ('jYear' in s) || ('jMonth' in s) || ('days' in s) || /(^|[.\-_])attendance([.\-_]|$)/i.test(JSON.stringify(s)) ;
+      }
       function looksLikeUsersArray(arr){
-        if (!Array.isArray(arr) || !arr.length || typeof arr[0] !== 'object') return false;
-        // حداقل یکی از فیلدهای «کد پرسنلی» باید در اکثر اعضا باشد
-        const sample = arr.slice(0, Math.min(arr.length, 10));
-        let withCode = 0;
-        for (const o of sample){
-          if (codeFields.some(f => f in o)) withCode++;
+        if(!Array.isArray(arr) || !arr.length || typeof arr[0]!=='object') return false;
+        if(isAttendanceArray(arr)) return false;
+        const sample=arr.slice(0,Math.min(arr.length,10));
+        let withCode=0, withName=0;
+        for(const o of sample){
+          if(codeFields.some(f=>f in o)) withCode++;
+          if(nameFields.some(f=>f in o)) withName++;
         }
-        return withCode >= Math.ceil(sample.length*0.6);
+        return withCode>=Math.ceil(sample.length*0.6) && withName>=1;
       }
 
-      for (const k of keys){
+      for(const k of keys){
+        if(/^swiny\.attendance/i.test(k)) continue; // حذف کلیدهای attendance
         const v=lsGet(k);
-        if (looksLikeUsersArray(v)){ users=v; usersKey=k; break; }
+        if(looksLikeUsersArray(v)){users=v;usersKey=k;break}
       }
-
       return {settings, settingsKey, users, usersKey};
     }
 
-    // کُد موقت اگر کاربر کد نداشت
-    function synthCode(full, idx){
-      const base = (full||'user').toString().trim().replace(/\s+/g,'_').slice(0,24) || 'user';
+    function synthCode(full,idx){
+      const base=(full||'user').toString().trim().replace(/\s+/g,'_').slice(0,24)||'user';
       return `code:${base}_${idx+1}`;
     }
-
-    // نرمال‌سازی کاربر (بدون fallback به u.name تا پروژه/شرکت اشتباهاً جایگزین نشود)
-    function normalizeUser(u, idx){
-      const fullFa  = u['نام و نام خانوادگی'] || u['نام‌ونام‌خانوادگی'];
-      const firstFa = u['نام'];
-      const lastFa  = u['نام خانوادگی'];
-      const codeFa  = u['شماره پرسنلی'] || u['کد پرسنلی'] || u['کدپرسنلی'] || u['کد_پرسنلی'];
-      const posFa   = u['سمت'] || u['پست سازمانی'] || u['نقش'];
-      const pidFa   = u['پروژه'] || u['کد پروژه'];
-
-      const code = u.personnelCode || u.empCode || codeFa || u.code || '';
-      const full = (u.fullName || fullFa || ((firstFa||'') + (lastFa? (' ' + lastFa) : ''))).trim();
-      const pos  = (u.position || u.role || u.title || u.jobTitle || posFa || '').trim();
-      const pid  = (u.projectId || pidFa || '').toString().trim();
-
-      const finalCode = (code && String(code).trim()) ? String(code) : synthCode(full, idx);
-      return { code: finalCode, fullName: full, position: pos, projectId: pid };
+    function normalizeUser(u,idx){
+      const fullFa=u['نام و نام خانوادگی']||u['نام‌ونام‌خانوادگی'];
+      const firstFa=u['نام']; const lastFa=u['نام خانوادگی'];
+      const codeFa=u['شماره پرسنلی']||u['کد پرسنلی']||u['کدپرسنلی']||u['کد_پرسنلی'];
+      const posFa=u['سمت']||u['پست سازمانی']||u['نقش'];
+      const pidFa=u['پروژه']||u['کد پروژه'];
+      const code=u.personnelCode||u.empCode||u.employeeCode||codeFa||u.code||'';
+      const full=(u.fullName||fullFa||((firstFa||'')+(lastFa?(' '+lastFa):''))).trim();
+      const pos =(u.position||u.role||u.title||u.jobTitle||posFa||'').trim();
+      const pid =(u.projectId||pidFa||'').toString().trim();
+      const finalCode=(code&&String(code).trim())?String(code):synthCode(full,idx);
+      return {code:finalCode, fullName:full, position:pos, projectId:pid};
     }
 
-    /* ==== ذخیره ماتریسی ==== */
-    const K_ATT = 'swiny.attendance.matrix.v1';
-    function loadMatrix(){ const a=lsGet(K_ATT, []); return Array.isArray(a)? a : []; }
-    function saveMatrix(arr){ lsSet(K_ATT, arr); }
-    function findRow(arr, projectId, code, jYear, jMonth){
-      return arr.find(x=> (x.projectId||'')=== (projectId||'') && x.code===code && x.jYear===jYear && x.jMonth===jMonth);
-    }
-    function getOrCreateRow(arr, projectId, code, jYear, jMonth, daysCount){
-      let r = findRow(arr, projectId, code, jYear, jMonth);
-      if (!r){ r = { projectId: projectId||'', code, jYear, jMonth, days:{} }; arr.push(r); }
-      for(let d=1; d<=daysCount; d++){ const k=String(d); if(!(k in r.days)) r.days[k]=''; }
+    const K_ATT='swiny.attendance.matrix.v1';
+    const loadMatrix=()=>{const a=lsGet(K_ATT,[]);return Array.isArray(a)?a:[]};
+    const saveMatrix=a=>lsSet(K_ATT,a);
+    const findRow=(a,pid,code,jy,jm)=>a.find(x=>(x.projectId||'')===(pid||'') && x.code===code && x.jYear===jy && x.jMonth===jm);
+    function getOrCreateRow(a,pid,code,jy,jm,days){
+      let r=findRow(a,pid,code,jy,jm);
+      if(!r){r={projectId:pid||'',code,jYear:jy,jMonth:jm,days:{}};a.push(r)}
+      for(let d=1; d<=days; d++){const k=String(d); if(!(k in r.days)) r.days[k]=''}
       return r;
     }
 
-    /* ==== حالت صفحه ==== */
-    const D = discover();
-    const currentProjectId = D.settings?.projectId || '';
-    if (currentProjectId) document.getElementById('projectBadge').textContent = 'پروژه: '+currentProjectId;
+    const D=discover();
+    const currentProjectId=D.settings?.projectId||'';
+    if(currentProjectId) document.getElementById('projectBadge').textContent='پروژه: '+currentProjectId;
 
-    const allUsersRaw = Array.isArray(D.users) ? D.users : [];
-    const allUsers = allUsersRaw.map((u,idx)=> normalizeUser(u, idx));
-    // فیلتر پروژه؛ اگر خالی شد، نادیده بگیر تا نمایش داشته باشیم
-    let users = currentProjectId ? allUsers.filter(u => !u.projectId || u.projectId===currentProjectId) : allUsers;
-    if (!users.length) users = allUsers.slice();
+    const allUsersRaw=Array.isArray(D.users)?D.users:[];
+    const allUsers=allUsersRaw.map((u,i)=>normalizeUser(u,i));
+    let users=currentProjectId? allUsers.filter(u=>!u.projectId || u.projectId===currentProjectId) : allUsers;
+    if(!users.length) users=allUsers.slice();
 
-    // سال/ماه شمسی
-    const yearSel = document.getElementById('yearSel');
-    for(let y=1398; y<=1410; y++){ const opt=document.createElement('option'); opt.value=y; opt.textContent=y; yearSel.appendChild(opt); }
-    yearSel.value = 1404;
+    const yearSel=document.getElementById('yearSel');
+    for(let y=1398;y<=1410;y++){const o=document.createElement('option');o.value=y;o.textContent=y;yearSel.appendChild(o)}
+    yearSel.value=1404;
+    const monthSel=document.getElementById('monthSel');
+    JMONTHS.forEach((n,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=n;monthSel.appendChild(o)});
+    monthSel.value=7;
 
-    const monthSel = document.getElementById('monthSel');
-    JMONTHS.forEach((nm,i)=>{ const opt=document.createElement('option'); opt.value=i+1; opt.textContent=nm; monthSel.appendChild(opt); });
-    monthSel.value = 7; // مهر
-
-    // بازه کاری
-    const rangeStart = document.getElementById('rangeStart');
-    const rangeEnd = document.getElementById('rangeEnd');
+    const rangeStart=document.getElementById('rangeStart');
+    const rangeEnd=document.getElementById('rangeEnd');
     for(let d=1; d<=31; d++){
-      let o1=document.createElement('option'); o1.value=d; o1.textContent=d; rangeStart.appendChild(o1);
-      let o2=document.createElement('option'); o2.value=d; o2.textContent=d; rangeEnd.appendChild(o2);
+      let o1=document.createElement('option');o1.value=d;o1.textContent=d;rangeStart.appendChild(o1);
+      let o2=document.createElement('option');o2.value=d;o2.textContent=d;rangeEnd.appendChild(o2);
     }
-    rangeStart.value = 21; rangeEnd.value = 20;
+    rangeStart.value=21; rangeEnd.value=20;
 
-    const searchByEl = document.getElementById('searchBy');
-    const searchInputEl = document.getElementById('searchInput');
-    const thead = document.getElementById('thead');
-    const tbody = document.getElementById('tbody');
-    const usersHint = document.getElementById('usersHint');
+    const searchByEl=document.getElementById('searchBy');
+    const searchInputEl=document.getElementById('searchInput');
+    const thead=document.getElementById('thead');
+    const tbody=document.getElementById('tbody');
+    const usersHint=document.getElementById('usersHint');
 
     function showUsersHint(){
-      usersHint.textContent = `کلید کاربران: ${D.users ? D.usersKey : '— یافت نشد —'} | کل: ${allUsers.length} | پس از فیلتر: ${users.length}`;
+      usersHint.textContent=`کلید کاربران: ${D.users ? D.usersKey : '— یافت نشد —'} | کل: ${allUsers.length} | پس از فیلتر: ${users.length}`;
     }
-
-    function makeHeader(jYear, jMonth, daysCount, startDay, endDay){
+    function dayInWindow(d,days,start,end){
+      if(end>=start) return d>=start && d<=end;
+      return (d>=start && d<=days) || (d>=1 && d<=end);
+    }
+    function makeHeader(jy,jm,days,start,end){
       thead.innerHTML='';
       const tr=document.createElement('tr');
-      ['ردیف','کد پرسنلی','نام و نام خانوادگی','سمت'].forEach(h=>{ const th=document.createElement('th'); th.textContent=h; tr.appendChild(th); });
-      for(let d=1; d<=daysCount; d++){
+      ['ردیف','کد پرسنلی','نام و نام خانوادگی','سمت'].forEach(h=>{const th=document.createElement('th');th.textContent=h;tr.appendChild(th)});
+      for(let d=1; d<=days; d++){
         const th=document.createElement('th'); th.textContent=d;
-        if (!dayInWindow(d, daysCount, startDay, endDay)) th.classList.add('cell-disabled');
+        if(!dayInWindow(d,days,start,end)) th.classList.add('cell-disabled');
         tr.appendChild(th);
       }
       const thAct=document.createElement('th'); thAct.textContent='اقدام'; tr.appendChild(thAct);
       thead.appendChild(tr);
     }
-    function dayInWindow(d, daysCount, startDay, endDay){
-      if (endDay >= startDay) return d>=startDay && d<=endDay;
-      return (d>=startDay && d<=daysCount) || (d>=1 && d<=endDay);
-    }
     function applySearch(list){
-      const by = searchByEl.value; 
-      const q = (searchInputEl.value||'').trim().toLowerCase();
-      if (!q) return list;
-      return list.filter(u=> (u[by]||'').toString().toLowerCase().includes(q));
+      const by=searchByEl.value, q=(searchInputEl.value||'').trim().toLowerCase();
+      if(!q) return list; return list.filter(u=>(u[by]||'').toString().toLowerCase().includes(q));
     }
-
-    // چرخه: '' -> P -> R -> A -> AS -> ''
-    function cycle(val){
-      if (!val) return 'P';
-      if (val==='P') return 'R';
-      if (val==='R') return 'A';
-      if (val==='A') return 'AS';
-      return '';
-    }
-    function applyStatusClass(td, val){
+    function cycle(v){ if(!v) return 'P'; if(v==='P') return 'R'; if(v==='R') return 'A'; if(v==='A') return 'AS'; return '' }
+    function applyStatusClass(td,v){
       td.classList.remove('st-P','st-R','st-A','st-AS');
-      if (val==='P') td.classList.add('st-P');
-      else if (val==='R') td.classList.add('st-R');
-      else if (val==='A') td.classList.add('st-A');
-      else if (val==='AS') td.classList.add('st-AS');
+      if(v==='P') td.classList.add('st-P'); else if(v==='R') td.classList.add('st-R');
+      else if(v==='A') td.classList.add('st-A'); else if(v==='AS') td.classList.add('st-AS');
     }
-
-    const editing = new Set(); // codes
+    const editing=new Set();
 
     function render(){
-      const jYear = Number(yearSel.value);
-      const jMonth = Number(monthSel.value);
-      const daysCount = jMonthLen(jYear, jMonth);
-      const startDay = Math.min(Math.max(1, Number(rangeStart.value)), 31);
-      const endDay   = Math.min(Math.max(1, Number(rangeEnd.value)), 31);
+      const jy=Number(yearSel.value), jm=Number(monthSel.value);
+      const days=jMonthLen(jy,jm);
+      const start=Math.min(Math.max(1,Number(rangeStart.value)),31);
+      const end=Math.min(Math.max(1,Number(rangeEnd.value)),31);
 
       showUsersHint();
-      makeHeader(jYear, jMonth, daysCount, startDay, endDay);
+      makeHeader(jy,jm,days,start,end);
       tbody.innerHTML='';
 
-      const list = applySearch(users.slice()).sort((a,b)=> (a.fullName||'').localeCompare(b.fullName||'', 'fa'));
-      if (!list.length){
+      const list=applySearch(users.slice()).sort((a,b)=>(a.fullName||'').localeCompare(b.fullName||'','fa'));
+      if(!list.length){
         const tr=document.createElement('tr'); const td=document.createElement('td');
-        td.colSpan=4+daysCount+1; td.className='muted'; td.textContent='— موردی برای نمایش نیست —';
+        td.colSpan=4+days+1; td.className='muted'; td.textContent='— موردی برای نمایش نیست —';
         tr.appendChild(td); tbody.appendChild(tr); return;
       }
+      const store=loadMatrix();
 
-      const store = loadMatrix();
-
-      list.forEach((u, idx)=>{
+      list.forEach((u,idx)=>{
         const tr=document.createElement('tr');
-        function cell(v){ const td=document.createElement('td'); td.textContent=v; return td }
+        const cell=v=>{const td=document.createElement('td'); td.textContent=v; return td};
         tr.appendChild(cell(toFa(idx+1)));
         tr.appendChild(cell(u.code||''));
-        tr.appendChild(cell(u.fullName||''));   // ← فقط نام کاربر
+        tr.appendChild(cell(u.fullName||''));  // فقط نام واقعی کاربر
         tr.appendChild(cell(u.position||''));
 
-        const row = getOrCreateRow(store, currentProjectId, u.code, jYear, jMonth, daysCount);
-
-        for(let d=1; d<=daysCount; d++){
-          const td=document.createElement('td');
-          td.className='cell-day';
-          td.dataset.day = String(d);
-          td.dataset.code = u.code;
-          const v = row.days[String(d)] || '';
-          td.textContent = v;
-          applyStatusClass(td, v);
-
-          const enabled = dayInWindow(d, daysCount, startDay, endDay);
-          if (!enabled) td.classList.add('cell-disabled');
-
-          td.addEventListener('click', ()=>{
-            if (!editing.has(u.code)) return;
-            if (!enabled) return;
-            const cur = row.days[String(d)] || '';
-            const nxt = cycle(cur);
-            row.days[String(d)] = nxt;
-            td.textContent = nxt;
-            applyStatusClass(td, nxt);
+        const row=getOrCreateRow(store,currentProjectId,u.code,jy,jm,days);
+        for(let d=1; d<=days; d++){
+          const td=document.createElement('td'); td.className='cell-day'; td.dataset.day=String(d); td.dataset.code=u.code;
+          const v=row.days[String(d)]||''; td.textContent=v; applyStatusClass(td,v);
+          const enabled=dayInWindow(d,days,start,end); if(!enabled) td.classList.add('cell-disabled');
+          td.addEventListener('click',()=>{
+            if(!editing.has(u.code) || !enabled) return;
+            const cur=row.days[String(d)]||''; const nxt=cycle(cur);
+            row.days[String(d)]=nxt; td.textContent=nxt; applyStatusClass(td,nxt);
           });
-
-          if (editing.has(u.code)) td.classList.add('editable'); else td.classList.remove('editable');
-          tr.appendChild(td);
+          if(editing.has(u.code)) td.classList.add('editable'); tr.appendChild(td);
         }
-
-        const tdAct=document.createElement('td');
-        const btn=document.createElement('button'); btn.className='btn';
-        const setEditingUi = ()=>{
-          btn.textContent = editing.has(u.code) ? 'ذخیره' : 'اصلاح';
-          [...tr.querySelectorAll('.cell-day')].forEach(td=>{
-            if (editing.has(u.code)) td.classList.add('editable');
-            else td.classList.remove('editable');
-          });
+        const tdAct=document.createElement('td'); const btn=document.createElement('button'); btn.className='btn';
+        const setUi=()=>{
+          btn.textContent=editing.has(u.code)?'ذخیره':'اصلاح';
+          [...tr.querySelectorAll('.cell-day')].forEach(x=> editing.has(u.code)?x.classList.add('editable'):x.classList.remove('editable'));
         };
-        btn.addEventListener('click', ()=>{
-          if (editing.has(u.code)){
-            saveMatrix(store);
-            editing.delete(u.code);
-            setEditingUi();
-          }else{
-            editing.add(u.code);
-            setEditingUi();
-          }
-        });
-        setEditingUi();
-        tdAct.appendChild(btn); tr.appendChild(tdAct);
-
-        tbody.appendChild(tr);
+        btn.addEventListener('click',()=>{ if(editing.has(u.code)){ saveMatrix(store); editing.delete(u.code);} else editing.add(u.code); setUi(); });
+        setUi(); tdAct.appendChild(btn); tr.appendChild(tdAct); tbody.appendChild(tr);
       });
     }
 
-    // CSV با BOM (UTF-8) و درج دوره
-    document.getElementById('exportBtn').addEventListener('click', ()=>{
-      const jYear = Number(yearSel.value);
-      const jMonth = Number(monthSel.value);
-      const daysCount = jMonthLen(jYear, jMonth);
-      const startDay = Math.min(Math.max(1, Number(rangeStart.value)), 31);
-      const endDay   = Math.min(Math.max(1, Number(rangeEnd.value)), 31);
+    document.getElementById('exportBtn').addEventListener('click',()=>{
+      const jy=Number(yearSel.value), jm=Number(monthSel.value);
+      const days=jMonthLen(jy,jm);
+      const start=Math.min(Math.max(1,Number(rangeStart.value)),31);
+      const end=Math.min(Math.max(1,Number(rangeEnd.value)),31);
 
-      const windowDays = [];
-      if (endDay >= startDay){
-        for(let d=startDay; d<=endDay; d++) windowDays.push({m:jMonth, d});
-      } else {
-        for(let d=startDay; d<=daysCount; d++) windowDays.push({m:jMonth, d});
-        const nextMonth = jMonth===12 ? 1 : jMonth+1;
-        const nextYear  = jMonth===12 ? (jYear+1) : jYear;
-        const nextDaysCount = jMonthLen(nextYear, nextMonth);
-        for(let d=1; d<=Math.min(endDay, nextDaysCount); d++) windowDays.push({m:nextMonth, d});
+      const windowDays=[];
+      if(end>=start){ for(let d=start; d<=end; d++) windowDays.push({m:jm,d}) }
+      else{
+        for(let d=start; d<=days; d++) windowDays.push({m:jm,d});
+        const nm=jm===12?1:jm+1, ny=jm===12?jy+1:jy, nDays=jMonthLen(ny,nm);
+        for(let d=1; d<=Math.min(end,nDays); d++) windowDays.push({m:nm,d});
       }
 
-      const store = loadMatrix();
-      const rows = [];
+      const store=loadMatrix(), rows=[];
+      const toMonth=(end>=start)?jm:(jm===12?1:jm+1);
+      const toYear =(end>=start)?jy:(jm===12?jy+1:jy);
+      rows.push([`دوره: ${jy}/${String(jm).padStart(2,'0')}/${String(start).padStart(2,'0')} تا ${toYear}/${String(toMonth).padStart(2,'0')}/${String(end).padStart(2,'0')}`]);
+      rows.push(['کد','نام و نام خانوادگی','سمت',...windowDays.map(x=>`${x.m}/${String(x.d).padStart(2,'0')}`)]);
 
-      let toMonth = (endDay >= startDay) ? jMonth : (jMonth===12 ? 1 : jMonth+1);
-      let toYear  = (endDay >= startDay) ? jYear  : (jMonth===12 ? jYear+1 : jYear);
-      const periodTitle = `دوره: ${jYear}/${String(jMonth).padStart(2,'0')}/${String(startDay).padStart(2,'0')} تا ${toYear}/${String(toMonth).padStart(2,'0')}/${String(endDay).padStart(2,'0')}`;
-      rows.push([periodTitle]);
-      const head = ['کد','نام و نام خانوادگی','سمت', ...windowDays.map(x=> `${x.m}/${String(x.d).padStart(2,'0')}`)];
-      rows.push(head);
-
-      const list = users.slice().sort((a,b)=> (a.fullName||'').localeCompare(b.fullName||'', 'fa'));
+      const list=users.slice().sort((a,b)=>(a.fullName||'').localeCompare(b.fullName||'','fa'));
       list.forEach(u=>{
-        const rowNow  = findRow(store, currentProjectId, u.code, jYear, jMonth) || {days:{}};
-        const nextM   = (jMonth===12 ? 1 : jMonth+1);
-        const nextY   = (jMonth===12 ? jYear+1 : jYear);
-        const rowNext = findRow(store, currentProjectId, u.code, nextY, nextM) || {days:{}};
-        const vals = windowDays.map(x=> (x.m===jMonth ? rowNow.days[String(x.d)] : rowNext.days[String(x.d)]) || '');
-        rows.push([u.code||'', u.fullName||'', u.position||'', ...vals]);
+        const rowNow=findRow(store,currentProjectId,u.code,jy,jm)||{days:{}};
+        const nm=jm===12?1:jm+1, ny=jm===12?jy+1:jy;
+        const rowNext=findRow(store,currentProjectId,u.code,ny,nm)||{days:{}};
+        const vals=windowDays.map(x=> (x.m===jm?rowNow.days[String(x.d)]:rowNext.days[String(x.d)]) || '');
+        rows.push([u.code||'',u.fullName||'',u.position||'',...vals]);
       });
 
-      const csv = rows.map(r => r.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
-      const bom = '\uFEFF'; // برای اکسل فارسی
-      const blob = new Blob([bom + csv], {type:'text/csv;charset=utf-8;'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url;
-      a.download = `attendance_${jYear}-${String(jMonth).padStart(2,'0')}_${String(startDay).padStart(2,'0')}_to_${String(endDay).padStart(2,'0')}.csv`;
+      const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+      const bom='\uFEFF';
+      const blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8;'});
+      const url=URL.createObjectURL(blob); const a=document.createElement('a');
+      a.href=url; a.download=`attendance_${jy}-${String(jm).padStart(2,'0')}_${String(start).padStart(2,'0')}_to_${String(end).padStart(2,'0')}.csv`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     });
 
-    // رویدادها
-    document.getElementById('refreshBtn').addEventListener('click', render);
-    document.getElementById('monthSel').addEventListener('change', render);
-    document.getElementById('yearSel').addEventListener('change', render);
-    document.getElementById('rangeStart').addEventListener('change', render);
-    document.getElementById('rangeEnd').addEventListener('change', render);
-    document.getElementById('searchBy').addEventListener('change', render);
-    document.getElementById('searchInput').addEventListener('input', render);
+    ['refreshBtn','monthSel','yearSel','rangeStart','rangeEnd','searchBy','searchInput'].forEach(id=>{
+      const el=document.getElementById(id); el.addEventListener(id==='searchInput'?'input':'change', render);
+    });
 
-    // پروژه در نوار عنوان
-    (function(){ const s=lsGet('swiny.settings.v1'); if (s?.projectId) document.getElementById('projectBadge').textContent='پروژه: '+s.projectId; })();
-
-    // اولین رندر
+    (function(){ const s=lsGet('swiny.settings.v1'); if(s?.projectId) document.getElementById('projectBadge').textContent='پروژه: '+s.projectId; })();
     render();
   </script>
 </body>
